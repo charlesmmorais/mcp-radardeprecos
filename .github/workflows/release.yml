@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Conferir versão
+        run: |
+          versao=$(python -c "import re,pathlib; print(re.search(r'\"(.+)\"', pathlib.Path('src/mcp_radardeprecos/__init__.py').read_text()).group(1))")
+          test "v$versao" = "$GITHUB_REF_NAME" || { echo "Tag $GITHUB_REF_NAME difere da versão $versao"; exit 1; }
+      - name: Construir sdist e wheel
+        run: |
+          pip install build twine
+          python -m build
+          twine check dist/*
+      - name: Extrair notas do CHANGELOG
+        run: |
+          versao="${GITHUB_REF_NAME#v}"
+          awk -v v="$versao" '
+            $0 ~ "^## \[" v "\]" {ativo=1; next}
+            ativo && /^## \[/ {exit}
+            ativo && /^\[.*\]: / {exit}
+            ativo {print}
+          ' CHANGELOG.md > notas.md
+          cat notas.md
+      - name: Publicar release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --notes-file notas.md --verify-tag

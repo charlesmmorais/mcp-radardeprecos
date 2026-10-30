@@ -1,0 +1,21 @@
+name: Sugerir melhoria
+description: Nova tool, fonte de dados ou mudança de comportamento.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: Problema
+      description: Que necessidade da pesquisa de preços não está atendida hoje?
+    validations:
+      required: true
+  - type: textarea
+    id: proposta
+    attributes:
+      label: Proposta
+      description: Como você imagina a solução? Inclua endpoints da fonte, se souber.
+  - type: textarea
+    id: fundamento
+    attributes:
+      label: Fundamentação
+      description: Norma, acórdão ou orientação que embasa a mudança, se houver.

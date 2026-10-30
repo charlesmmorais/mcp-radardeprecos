@@ -1,0 +1,25 @@
+# Testes contra as APIs reais (PNCP, Compras.gov.br, BCB...). Detectam mudanças
+# nas fontes que a suíte offline não enxerga. Uma falha aqui pode ser
+# instabilidade ou mudança da fonte, não necessariamente um defeito do projeto.
+name: Live smoke
+
+on:
+  schedule:
+    - cron: "0 9 * * 1" # segundas, 06:00 em Brasília
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: pytest -m live -q

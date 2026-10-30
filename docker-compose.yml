@@ -1,0 +1,13 @@
+# docker compose up -d  →  MCP em http://localhost:8080/mcp, health check em /
+services:
+  mcp-radardeprecos:
+    build: .
+    image: mcp-radardeprecos
+    container_name: mcp-radardeprecos
+    ports:
+      - "8080:8080"
+    environment:
+      RADARDEPRECOS_RATE_LIMIT_PER_MINUTE: "60"
+      RADARDEPRECOS_HTTP_TIMEOUT: "30"
+      RADARDEPRECOS_TOOL_BUDGET_SECONDS: "120"
+    restart: unless-stopped

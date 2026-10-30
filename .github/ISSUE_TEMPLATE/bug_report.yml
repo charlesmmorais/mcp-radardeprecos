@@ -1,0 +1,51 @@
+name: Relatar defeito
+description: Algo não funciona como esperado.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por relatar. Se for uma vulnerabilidade, **não abra issue**: siga a [política de segurança](../blob/main/SECURITY.md).
+  - type: input
+    id: tool
+    attributes:
+      label: Tool envolvida
+      placeholder: ex.: buscar_precos_praticados_compras
+  - type: textarea
+    id: descricao
+    attributes:
+      label: O que aconteceu
+      description: Descreva o comportamento observado e o esperado.
+    validations:
+      required: true
+  - type: textarea
+    id: reproducao
+    attributes:
+      label: Como reproduzir
+      description: Parâmetros da chamada (JSON) ou o pedido feito ao assistente.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: saida
+    attributes:
+      label: Resposta ou erro
+      description: Trecho relevante da resposta, incluindo `avisos` e `cobertura`, se houver.
+      render: text
+  - type: input
+    id: versao
+    attributes:
+      label: Versão
+      description: Saída de `mcp-radardeprecos --version` ou campo `version` em `GET /`.
+    validations:
+      required: true
+  - type: dropdown
+    id: transporte
+    attributes:
+      label: Transporte
+      options: [stdio, streamable-http, sse]
+  - type: input
+    id: cliente
+    attributes:
+      label: Cliente MCP
+      placeholder: ex.: Claude Desktop, ChatGPT, Microsoft 365 Copilot
