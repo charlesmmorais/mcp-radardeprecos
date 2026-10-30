@@ -323,6 +323,7 @@ Documentação técnica:
 - [Arquitetura](docs/ARQUITETURA.md) — camadas, responsabilidades e decisões
 - [Fontes de dados](docs/FONTES_DE_DADOS.md) — endpoints usados e limitações de cada API
 - [Comportamento das fontes](docs/ACHADOS_DAS_FONTES.md) — o que foi medido nas APIs reais
+- [Plano de testes com dados reais](docs/PLANO_TESTES_REAIS.md) — casos por tool, sondagem dos endpoints e critérios de aceite
 - [Hospedagem](docs/DEPLOY.md) — Docker, HTTP e conexão com clientes
 - [Microsoft 365 Copilot](docs/INTEGRACAO_M365_COPILOT.md) — autenticação Entra ID
 
