@@ -15,6 +15,7 @@ exige Entra ID; Claude/ChatGPT continuam sem nenhuma autenticação).
   de qualquer coisa (ver ``server.health_check``); exigir token aqui
   quebraria o smoke test de deploy de infraestrutura que não sabe nada
   sobre OAuth.
+- ``GET /favicon.ico`` — o navegador pede o ícone sem enviar token.
 - Qualquer caminho sob ``/.well-known/`` — os metadados do protocolo (ver
   ``server.py``, item 5) precisam ser lidos pelo cliente ANTES de ele
   saber como se autenticar; exigir token aqui criaria uma dependência
@@ -40,7 +41,7 @@ from .entra import EntraAuthError, EntraJWKSIndisponivelError, validar_token
 
 #: Caminhos exatos que dispensam token, além de qualquer coisa sob
 #: ``_PREFIXO_SEM_TOKEN``.
-_ROTAS_SEM_TOKEN_EXATAS = frozenset({"/"})
+_ROTAS_SEM_TOKEN_EXATAS = frozenset({"/", "/favicon.ico"})
 _PREFIXO_SEM_TOKEN = "/.well-known/"
 
 

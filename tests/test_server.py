@@ -140,6 +140,17 @@ async def test_health_check_responde_200_na_raiz_do_app_streamable_http():
     assert corpo["mcp_endpoint"] == "/mcp"
 
 
+async def test_favicon_responde_png():
+    app = server.mcp.streamable_http_app()
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        resposta = await client.get("/favicon.ico")
+
+    assert resposta.status_code == 200
+    assert resposta.headers["content-type"] == "image/png"
+    assert resposta.content[:8] == b"\x89PNG\r\n\x1a\n"
+
+
 async def test_health_check_responde_200_na_raiz_do_app_sse():
     app = server.mcp.sse_app()
     transport = httpx.ASGITransport(app=app)

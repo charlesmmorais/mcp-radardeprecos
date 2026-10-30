@@ -19,6 +19,7 @@ import functools
 import os
 import time
 from collections.abc import Awaitable, Callable
+from importlib import resources
 from typing import Any
 
 import anyio
@@ -314,6 +315,19 @@ async def health_check(request: Request) -> Response:
             "metrics": obter_metricas(),
         },
         headers={"Access-Control-Allow-Origin": "*"},
+    )
+
+
+_FAVICON = (resources.files(__package__) / "static" / "favicon.png").read_bytes()
+
+
+@mcp.custom_route("/favicon.ico", methods=["GET"])
+async def favicon(request: Request) -> Response:
+    """Ícone que o navegador pede ao abrir qualquer página do servidor."""
+    return Response(
+        content=_FAVICON,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=86400"},
     )
 
 
