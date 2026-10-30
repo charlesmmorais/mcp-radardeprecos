@@ -104,6 +104,14 @@ async def test_health_check_raiz_passa_sem_token(entra_habilitar):
     assert r.status_code == 200
 
 
+async def test_favicon_passa_sem_token(entra_habilitar):
+    entra_habilitar()
+    app = EntraAuthMiddleware(_app_ok)
+    async with await _cliente(app) as client:
+        r = await client.get("/favicon.ico")
+    assert r.status_code == 200
+
+
 async def test_well_known_passa_sem_token(entra_habilitar):
     entra_habilitar()
     app = EntraAuthMiddleware(_app_ok)

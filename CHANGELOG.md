@@ -7,6 +7,11 @@ e o projeto adota o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+### Adicionado
+
+- Ícone do navegador em `/favicon.ico`, liberado também quando a autenticação
+  Entra ID está ativa.
+
 ## [1.0.0] — 2026-10-30
 
 Primeira versão pública.
