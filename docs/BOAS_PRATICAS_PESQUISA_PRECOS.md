@@ -128,11 +128,12 @@ Compras.gov.br, ou evidência equivalente).
 ## 6. Particularidades de TIC
 
 As [orientações da Secretaria de Governo Digital](https://www.gov.br/governodigital/pt-br/contratacoes-de-tic/legislacao/orientacoes-para-realizacao-de-analise-critica-na-pesquisa-de-precos)
-remetem ao IPPC-TIC e à IN SGD/ME nº 94/2022.
+remetem ao IPPC-TIC, à IN SGD/ME nº 94/2022 e à Nota Técnica AudTI/TCU
+nº 08/2023.
 
 - **Saneamento:** o escore Z iterativo, padrão deste servidor, é o do
-  IPPC-TIC. A média saneada (remoção em lote, Acórdão TCU 355/2019-P)
-  continua disponível.
+  IPPC-TIC. A Nota Técnica do TCU descreve a remoção em lote (média
+  saneada). As duas variantes têm lastro oficial.
 - **Estudo de mercado do ETP** (Art. 11, VI, IN SGD/ME 94/2022): comparar
   soluções concorrentes antes de pesquisar o preço da escolhida.
   `gerar_estudo_mercado_tic` monta a matriz de comparabilidade, que
