@@ -28,12 +28,13 @@ jobs:
         run: |
           versao="${GITHUB_REF_NAME#v}"
           awk -v v="$versao" '
-            $0 ~ "^## \[" v "\]" {ativo=1; next}
+            index($0, "## [" v "]") == 1 {ativo=1; next}
             ativo && /^## \[/ {exit}
             ativo && /^\[.*\]: / {exit}
             ativo {print}
           ' CHANGELOG.md > notas.md
           cat notas.md
+          test -s notas.md || { echo "Seção da versão não encontrada no CHANGELOG"; exit 1; }
       - name: Publicar release
         env:
           GH_TOKEN: ${{ github.token }}
