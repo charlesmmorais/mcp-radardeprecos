@@ -126,6 +126,51 @@ tools deste servidor declaram quais são de leitura e quais geram arquivo.
 Exige autenticação Entra ID. Veja
 [INTEGRACAO_M365_COPILOT.md](INTEGRACAO_M365_COPILOT.md).
 
+## Observabilidade
+
+Com o extra `metrics` instalado (a imagem Docker já o inclui) e
+`RADARDEPRECOS_METRICS_PORT` definida, o servidor publica métricas no formato
+Prometheus em `http://<host>:<porta>/metrics`, numa porta **separada** da do
+MCP. Assim elas podem ficar fora da internet: só quem está na rede interna lê.
+
+| Métrica | Tipo | O que mede |
+|---|---|---|
+| `radardeprecos_tool_chamadas_total{tool}` | contador | Chamadas por tool |
+| `radardeprecos_tool_erros_total{tool}` | contador | Chamadas com erro por tool |
+| `radardeprecos_tool_duracao_segundos{tool,quantil}` | gauge | p50 e p95 da duração, por tool |
+| `radardeprecos_fonte_chamadas_total{fonte}` | contador | Chamadas a cada fonte (PNCP, Compras.gov.br, BPS, BCB, TCU, CNPJ) |
+| `radardeprecos_fonte_erros_total{fonte}` | contador | Chamadas a cada fonte que falharam |
+| `radardeprecos_fonte_tentativas_total{fonte}` | contador | Requisições HTTP, contando repetições — acima de 1 por chamada, a fonte está instável |
+| `radardeprecos_fonte_duracao_segundos{fonte,quantil}` | gauge | p50 e p95 da duração, por fonte |
+| `radardeprecos_cliente_sessoes_total{cliente}` | contador | Sessões por cliente MCP |
+| `radardeprecos_cliente_chamadas_total{cliente}` | contador | Chamadas por cliente MCP |
+| `radardeprecos_sessoes_total` | contador | Sessões (conversas) MCP distintas |
+| `radardeprecos_protocolo_chamadas_total{versao}` | contador | Chamadas por versão do protocolo MCP |
+| `radardeprecos_info{versao}` | gauge | Versão em execução |
+
+O **cliente** é o nome que o próprio software informa no handshake (Claude,
+ChatGPT, Gemini…), limitado a 30 nomes distintos. Não há IP nem dado pessoal, e
+uma sessão é uma conversa, não uma pessoa. Os contadores vivem em memória e
+zeram quando o processo reinicia; o Prometheus trata isso em `rate()` e
+`increase()`.
+
+### No Fly.io
+
+O `fly.toml` do repositório já liga as métricas na porta interna 9091 (seção
+`[metrics]`) — ela não está no `http_service`, então não fica exposta na
+internet. O Fly coleta automaticamente; para ver:
+
+1. Abra o Grafana gerenciado do Fly: no painel do app, **Metrics** → *Learn how
+   to access Prometheus or set up Grafana*, ou direto em
+   [fly-metrics.net](https://fly-metrics.net).
+2. **Dashboards → New → Import** e envie
+   [`docs/grafana/painel-radardeprecos.json`](grafana/painel-radardeprecos.json).
+3. Escolha a fonte de dados Prometheus da sua organização e o app
+   `mcp-radardeprecos`.
+
+O painel mostra chamadas e erros por tool, as tools mais usadas, latência,
+sessões por cliente MCP e a saúde de cada fonte de dados.
+
 ## Verificação
 
 `scripts/smoke_mcp.py` faz um teste de ponta a ponta contra um servidor em

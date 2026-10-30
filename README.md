@@ -289,12 +289,15 @@ Nenhuma variável é obrigatória. Veja [`.env.example`](.env.example).
 | `RADARDEPRECOS_HTTP_MAX_RETRIES` | `4` | Tentativas em falha de rede, 429 e 5xx (backoff exponencial com jitter). |
 | `RADARDEPRECOS_TOOL_BUDGET_SECONDS` | `120` | Orçamento de tempo das varreduras amplas; ao estourar, devolve o parcial com aviso. `0` desativa. |
 | `RADARDEPRECOS_LOG_LEVEL` | `INFO` | Nível de log (estruturado, com `request_id` por chamada). |
+| `RADARDEPRECOS_METRICS_PORT` | — | Porta interna das métricas Prometheus (requer o extra `metrics`). Ver [Observabilidade](docs/DEPLOY.md#observabilidade). |
 | `RADARDEPRECOS_PERMITIR_CAMINHO_SAIDA` | — | Libera `caminho_saida` nos transportes HTTP. Use só quando o servidor roda na sua máquina. |
 | `RADARDEPRECOS_INCLUIR_CPF_COMPLETO` | — | Desliga o mascaramento de CPF de fornecedor pessoa física. |
 | `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_REQUIRED_SCOPE` | — | Autenticação Microsoft Entra ID nos transportes HTTP (opcional). |
 
 Nos transportes HTTP, `GET /` responde com versão, catálogo de tools e
-contadores de uso em memória. O endpoint MCP é `/mcp`.
+contadores de uso em memória. O endpoint MCP é `/mcp`. Para acompanhar o uso
+ao longo do tempo (tools, clientes MCP, saúde das fontes), veja
+[Observabilidade](docs/DEPLOY.md#observabilidade).
 
 ## Desenvolvimento
 

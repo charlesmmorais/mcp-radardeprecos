@@ -1,9 +1,11 @@
-"""Observabilidade mínima: contadores em memória por tool e por fonte externa.
+"""Observabilidade mínima: contadores em memória por tool, fonte e cliente.
 
 Sem dependência externa. Alimentado pelo wrapper único
-``server._registrar_tool`` e exposto no health check (``GET /``).
+``server._registrar_tool``, exposto no health check (``GET /``) e, quando
+configurado, no formato Prometheus (``metricas_prometheus.py``).
 
-- Nada por usuário ou IP: os dados servidos são públicos.
+- Nada por usuário ou IP. O "cliente" é o nome do software MCP (Claude,
+  ChatGPT…) que ele próprio informa no handshake.
 - Sem persistência: zera a cada reinício. Para histórico, use os logs
   estruturados (``request_id``, ver ``logging_utils.py``).
 - p95 sobre uma janela limitada de amostras (:data:`_MAX_AMOSTRAS_DURACAO`),
@@ -11,6 +13,7 @@ Sem dependência externa. Alimentado pelo wrapper único
 """
 from __future__ import annotations
 
+import re
 import threading
 import time
 from collections import OrderedDict, deque
@@ -116,8 +119,10 @@ def resetar() -> None:
         # protocolo do caso anterior — dado velho apresentado como medição,
         # que é exatamente o que este módulo existe para evitar.
         _protocolos.clear()
-    global _sessoes_descartadas
+        _clientes.clear()
+    global _sessoes_descartadas, _sessoes_vistas
     _sessoes_descartadas = 0
+    _sessoes_vistas = 0
 
 
 # ===========================================================================
@@ -134,6 +139,18 @@ _fontes: dict[str, dict[str, Any]] = {}
 #: quando o teto é atingido.
 _sessoes: OrderedDict[str, int] = OrderedDict()
 _sessoes_descartadas = 0
+#: Sessões distintas vistas desde o início do processo, inclusive as que já
+#: saíram da memória — base do contador monotônico do Prometheus.
+_sessoes_vistas = 0
+
+#: Chamadas e sessões por cliente MCP (nome informado no handshake).
+_clientes: dict[str, dict[str, int]] = {}
+#: Teto de nomes distintos: um cliente com nome aleatório não pode inflar as
+#: séries de métricas. Os excedentes entram em :data:`_CLIENTE_OUTROS`.
+_MAX_CLIENTES = 30
+_CLIENTE_OUTROS = "(outros)"
+_CLIENTE_DESCONHECIDO = "(desconhecido)"
+_CARACTERES_CLIENTE = re.compile(r"[^A-Za-z0-9 ._-]")
 
 _inicio_processo = time.time()
 
@@ -233,24 +250,93 @@ def registrar_protocolo(versao: str | None) -> None:
         _protocolos[chave] = _protocolos.get(chave, 0) + 1
 
 
-def registrar_sessao(sessao: str | None, nome_tool: str) -> None:
-    """Conta uma chamada na sessão MCP informada.
+def registrar_sessao(sessao: str | None, nome_tool: str) -> bool:
+    """Conta uma chamada na sessão MCP informada; ``True`` se a sessão é nova.
 
     ``None`` não cria registro: o transporte ``stdio`` não tem sessão HTTP, e
     inventar uma produziria uma contagem que não corresponde a nada.
     """
     if not sessao:
-        return
-    global _sessoes_descartadas
+        return False
+    global _sessoes_descartadas, _sessoes_vistas
     with _lock:
         if sessao in _sessoes:
             _sessoes[sessao] += 1
             _sessoes.move_to_end(sessao)
-            return
+            return False
         _sessoes[sessao] = 1
+        _sessoes_vistas += 1
         while len(_sessoes) > settings.observabilidade_max_sessoes:
             _sessoes.popitem(last=False)
             _sessoes_descartadas += 1
+        return True
+
+
+def cliente_atual() -> str | None:
+    """Nome do cliente MCP desta sessão, como ele mesmo informou no ``initialize``."""
+    try:
+        sessao = mcp_server_module.get_context().request_context.session
+        info = getattr(getattr(sessao, "client_params", None), "clientInfo", None)
+        return getattr(info, "name", None)
+    except Exception:  # noqa: BLE001 - fora de contexto MCP (stdio, testes)
+        return None
+
+
+def normalizar_cliente(nome: str | None) -> str:
+    """Nome de cliente seguro para rótulo: só caracteres comuns, até 40."""
+    limpo = _CARACTERES_CLIENTE.sub("", str(nome or "")).strip()[:40]
+    return limpo or _CLIENTE_DESCONHECIDO
+
+
+def registrar_cliente(nome: str | None, nova_sessao: bool) -> None:
+    """Conta uma chamada (e, se for o caso, uma sessão nova) para o cliente MCP."""
+    chave = normalizar_cliente(nome)
+    with _lock:
+        if chave not in _clientes and len(_clientes) >= _MAX_CLIENTES:
+            chave = _CLIENTE_OUTROS
+        reg = _clientes.setdefault(chave, {"chamadas": 0, "sessoes": 0})
+        reg["chamadas"] += 1
+        if nova_sessao:
+            reg["sessoes"] += 1
+
+
+def instantaneo_prometheus() -> dict[str, Any]:
+    """Contadores brutos para exportação: totais monotônicos e percentis.
+
+    Separado de :func:`obter_metricas_completas`, que é contrato do health
+    check e traz médias e taxas já calculadas — o Prometheus precisa dos
+    totais para calcular taxas por conta própria.
+    """
+    with _lock:
+        tools = {
+            nome: {
+                "chamadas": total,
+                "erros": _erros.get(nome, 0),
+                "p50": _percentil_ou_none(list(_duracoes.get(nome, ())), 0.5),
+                "p95": _percentil_ou_none(list(_duracoes.get(nome, ())), 0.95),
+            }
+            for nome, total in _chamadas.items()
+        }
+        fontes = {
+            fonte: {
+                "chamadas": reg["chamadas"],
+                "erros": reg["erros"],
+                "tentativas": reg["tentativas"],
+                "p50": _percentil_ou_none(list(reg["duracoes"]), 0.5),
+                "p95": _percentil_ou_none(list(reg["duracoes"]), 0.95),
+            }
+            for fonte, reg in _fontes.items()
+        }
+        return {
+            "versao": __version__,
+            "inicio_processo": _inicio_processo,
+            "tools": tools,
+            "fontes": fontes,
+            "clientes": {nome: dict(reg) for nome, reg in _clientes.items()},
+            "protocolos": dict(_protocolos),
+            "sessoes_em_memoria": len(_sessoes),
+            "sessoes_vistas": _sessoes_vistas,
+        }
 
 
 def _percentil_ou_none(amostras: list[float], p: float) -> float | None:
@@ -304,6 +390,7 @@ def obter_metricas_completas() -> dict[str, Any]:
         total_erros = sum(_erros.values())
         descartadas = _sessoes_descartadas
         protocolos = dict(_protocolos)
+        clientes = {nome: dict(reg) for nome, reg in sorted(_clientes.items())}
 
     avisos = [
         "As sessões contam CONVERSAS MCP distintas, NÃO pessoas nem "
@@ -342,6 +429,7 @@ def obter_metricas_completas() -> dict[str, Any]:
         # nenhuma verificável. Era o caso até a v0.5.11, e a segunda leitura é
         # que estava certa.
         "por_protocolo": dict(protocolos),
+        "por_cliente": clientes,
         "sessoes": {
             "distintas_em_memoria": len(chamadas_por_sessao),
             "descartadas_por_limite": descartadas,

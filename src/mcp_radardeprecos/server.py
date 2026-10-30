@@ -242,7 +242,10 @@ def _registrar_tool(func: Callable[..., Awaitable[object]]) -> None:
         finally:
             auditoria.limpar_tool_atual(token)
             registrar_chamada(func.__name__, time.monotonic() - inicio, sucesso)
-            observability.registrar_sessao(observability.sessao_atual(), func.__name__)
+            nova_sessao = observability.registrar_sessao(
+                observability.sessao_atual(), func.__name__
+            )
+            observability.registrar_cliente(observability.cliente_atual(), nova_sessao)
             observability.registrar_protocolo(observability.protocolo_atual())
 
     mcp.tool(name=func.__name__, annotations=_anotacoes(func.__name__))(wrapper)
@@ -428,6 +431,22 @@ def main(argv: list[str] | None = None) -> None:
         _run_http(args.transport, args.rate_limit_por_minuto)
 
 
+#: Porta interna das métricas Prometheus. Vazia = desligado.
+ENV_PORTA_METRICAS = "RADARDEPRECOS_METRICS_PORT"
+
+
+def _iniciar_metricas(valor: str) -> bool:
+    """Liga o endpoint Prometheus numa porta própria, separada da do MCP."""
+    if not valor:
+        return False
+    if not valor.isdigit() or not 0 < int(valor) < 65536:
+        logger.warning("%s=%r inválida; métricas Prometheus desligadas", ENV_PORTA_METRICAS, valor)
+        return False
+    from .metricas_prometheus import iniciar_servidor
+
+    return iniciar_servidor(int(valor))
+
+
 def _run_http(transport: str, rate_limit_por_minuto: int) -> None:
     """Sobe os transportes HTTP com a cadeia de middlewares do servidor.
 
@@ -452,6 +471,8 @@ def _run_http(transport: str, rate_limit_por_minuto: int) -> None:
     permitir_gravacao_em_disco(permitir_disco)
     logger.info("caminho_saida %s no transporte HTTP",
                 "PERMITIDO (opt-in)" if permitir_disco else "recusado")
+
+    _iniciar_metricas(os.environ.get(ENV_PORTA_METRICAS, "").strip())
 
     limiter = RateLimiter(limite_por_minuto=rate_limit_por_minuto)
 

@@ -11,7 +11,8 @@ src/mcp_radardeprecos/
 ├── server.py            Registro MCP (camada fina) e seleção de transporte
 ├── config.py            Configuração por variáveis de ambiente
 ├── logging_utils.py     Logs estruturados com request_id
-├── observability.py     Contadores em memória por tool e por fonte
+├── observability.py     Contadores em memória por tool, fonte e cliente MCP
+├── metricas_prometheus.py  Exportação Prometheus (opcional, porta interna)
 ├── auditoria.py         Trilha de proveniência de cada consulta às fontes
 ├── catalogo.py          Digest do catálogo de tools, exposto no health check
 ├── rate_limit.py        Rate limit por origem (transportes HTTP)

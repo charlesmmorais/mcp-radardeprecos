@@ -7,6 +7,24 @@ e o projeto adota o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+## [1.1.0] — 2026-10-30
+
+### Adicionado
+
+- Métricas de uso no formato Prometheus, numa porta interna própria
+  (`RADARDEPRECOS_METRICS_PORT`, extra `metrics`): chamadas, erros e latência
+  por tool; chamadas, erros, tentativas e latência por fonte de dados; sessões
+  e chamadas por cliente MCP; versão do protocolo.
+- Registro do cliente MCP de cada sessão (nome informado no handshake, sem IP
+  nem dado pessoal), também em `por_cliente` no health check.
+- Painel pronto para o Grafana em `docs/grafana/painel-radardeprecos.json`.
+- `fly.toml` com a coleta de métricas pelo Fly.io.
+
+### Alterado
+
+- No Fly.io, máquinas ociosas passam a ser suspensas (`suspend`) em vez de
+  paradas: retomam mais rápido e preservam os contadores de uso.
+
 ## [1.0.1] — 2026-10-30
 
 ### Corrigido
@@ -67,6 +85,7 @@ Primeira versão pública.
   autenticação Microsoft Entra ID opcional.
 - Imagem Docker com usuário sem privilégios e health check.
 
-[Não publicado]: https://github.com/charlesmmorais/mcp-radardeprecos/compare/v1.0.1...HEAD
+[Não publicado]: https://github.com/charlesmmorais/mcp-radardeprecos/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/charlesmmorais/mcp-radardeprecos/releases/tag/v1.1.0
 [1.0.1]: https://github.com/charlesmmorais/mcp-radardeprecos/releases/tag/v1.0.1
 [1.0.0]: https://github.com/charlesmmorais/mcp-radardeprecos/releases/tag/v1.0.0
