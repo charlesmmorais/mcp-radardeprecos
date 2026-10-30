@@ -269,7 +269,9 @@ def _sanear_amostra_escore_z(
     exatos do exemplo oficial (40,12%/35,65%/25,06%/14,48%). Desde a v0.5.15
     é a convenção de todo o módulo — ver :func:`_desvio_padrao`.
 
-    Retorna ``(amostra, excluídos, iterações, motivo_da_parada)``. O motivo
+    Retorna ``(amostra, excluídos, iterações, motivo_da_parada, histórico,
+    exclusões_revertidas)`` — a última é quantas exclusões foram desfeitas para
+    voltar à amostra de menor CV quando o piso chega antes da meta. O motivo
     separa 'cheguei à meta de CV' de 'esbarrei num guarda de
     segurança' — indistinguíveis até então, e a segunda é a que invalida o
     resultado para uso no processo.
