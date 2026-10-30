@@ -199,9 +199,14 @@ DIRETRIZES_PESQUISA_PRECOS: dict[str, Any] = {
     },
     "metodos_calculo": {
         "tool": "calcular_preco_referencia",
-        "media_saneada": "Método padrão. Média ± desvio-padrão, aplicado "
-        "iterativamente; Coeficiente de Variação (CV) ≤ 25% valida a "
-        "homogeneidade da amostra final (Acórdão TCU 355/2019-P).",
+        "escore_z": "Método padrão. Se o Coeficiente de Variação (CV) passa "
+        "de 25%, remove um valor por vez — o de maior |Escore Z| — até CV ≤ 25% "
+        "ou o piso de 3 referências (IPPC-TIC, AGU/MGI 2024). Com CV inicial "
+        "de até 25%, nada é removido. Em amostras de 20 preços ou mais, excluir "
+        "mais de 20% pede revisão.",
+        "media_saneada": "Média ± desvio-padrão em passe único (Acórdão TCU "
+        "355/2019-P): exclui de uma vez os valores fora da faixa; não garante "
+        "CV ≤ 25%.",
         "mediana": "Mais robusta a valores discrepantes; indicada para "
         "pesquisas de baixo risco ou amostras heterogêneas (Acórdãos TCU "
         "631/2014-P e 3033/2013-P).",
@@ -287,6 +292,7 @@ def renderizar_markdown() -> str:
 
     metodos = d["metodos_calculo"]
     linhas.append(f"## Métodos de cálculo (tool `{metodos['tool']}`)\n")
+    linhas.append(f"- **Escore Z**: {metodos['escore_z']}")
     linhas.append(f"- **Média saneada**: {metodos['media_saneada']}")
     linhas.append(f"- **Mediana**: {metodos['mediana']}")
     linhas.append(f"- **Mínimo**: {metodos['minimo']}")

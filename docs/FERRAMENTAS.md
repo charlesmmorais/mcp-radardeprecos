@@ -168,8 +168,11 @@ Consulta (`/v1/pca`).
 
 **`buscar_precos_praticados_compras`** — busca preços praticados no setor
 público para um item de catálogo. *Como:* consulta os valores de compras
-públicas concluídas por código CATMAT/CATSER (ou PDM), com filtros de data,
-poder e esfera aplicados na fonte e opção de varrer todas as páginas. É a fonte
+públicas concluídas por código CATMAT/CATSER (ou PDM), com filtros de poder,
+esfera e período aplicados na fonte e opção de varrer todas as páginas. O
+período é pela **data da compra** e exige as duas datas — com uma só, a fonte
+ignora o filtro, então a tool recusa. Cada preço traz a data da compra e a do
+resultado, e a resposta confere o período observado contra o pedido. É a fonte
 de maior prioridade da IN 65/2021. *Fonte:* Compras.gov.br — Dados Abertos
 (módulo de pesquisa de preço).
 
@@ -222,8 +225,8 @@ composto etc.). Informativa: nunca descarta nada. *Fonte:* sem acesso externo.
 cesta. *Como:* o padrão é o **escore Z iterativo**, governado pelo coeficiente
 de variação: com CV inicial de até 25% nada é removido (série homogênea não tem
 outlier a tratar); acima disso, remove um valor por iteração — o de maior |Z| —
-e recalcula o CV até atingir a meta, o piso de 3 referências ou o limite de
-iterações. Toda execução informa `motivo_parada_saneamento`, o CV antes e
+e recalcula o CV até atingir a meta ou o piso de 3 referências, sem teto de
+iterações; com 20 preços ou mais, excluir acima de 20% gera aviso de revisão. Toda execução informa `motivo_parada_saneamento`, o CV antes e
 depois, o `percentual_excluido` e o `historico_saneamento`, com uma linha por
 exclusão. Quando a série parece misturar dois objetos sob o mesmo código de
 catálogo, o resultado sai com `status_resultado: "nao_apto"` e

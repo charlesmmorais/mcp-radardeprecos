@@ -570,3 +570,148 @@ async def test_limite_dentro_da_faixa_nao_gera_aviso_nem_divergencia():
     assert r["quantidade_retornada"] == 20
     assert r["cobertura"]["registros_examinados"] == 20
     assert not any("elevado" in a for a in r["avisos"])
+
+
+# ---------------------------------------------------------------------------
+# Recorte por data da compra (30/10/2026).
+#
+# Medido no CATMAT 267203: com só a data inicial, só a final ou nenhuma, o
+# Compras.gov.br devolveu os MESMOS 2.170 registros, byte a byte; com as duas,
+# 408. Uma data isolada é ignorada sem aviso, e a série inteira parecia
+# filtrada. A tool passa a recusar antes de consultar a fonte.
+# ---------------------------------------------------------------------------
+
+_ALVO_MATERIAL = (
+    "mcp_radardeprecos.tools.buscar_precos_praticados_compras."
+    "compras_client.consultar_precos_material"
+)
+
+
+def _registro_datado(data_compra: str | None, data_resultado: str | None) -> dict:
+    return {
+        "precoUnitario": 0.12,
+        "quantidade": 1000,
+        "siglaUnidadeFornecimento": "COMPR",
+        "nomeUnidadeFornecimento": "COMPRIMIDO",
+        "capacidadeUnidadeFornecimento": 0,
+        "dataCompra": data_compra,
+        "dataResultado": data_resultado,
+    }
+
+
+@pytest.mark.parametrize(
+    "inicio, fim",
+    [("2025-10-30", None), (None, "2026-10-30")],
+    ids=["so_inicio", "so_fim"],
+)
+async def test_data_isolada_e_recusada_sem_consultar_a_fonte(inicio, fim):
+    with patch(_ALVO_MATERIAL, new=AsyncMock()) as fonte:
+        with pytest.raises(ValueError, match="juntas"):
+            await buscar_precos_praticados_compras(
+                267203, "material", data_compra_inicio=inicio, data_compra_fim=fim
+            )
+    fonte.assert_not_awaited()
+
+
+async def test_data_inicial_posterior_a_final_e_recusada():
+    with patch(_ALVO_MATERIAL, new=AsyncMock()) as fonte:
+        with pytest.raises(ValueError, match="posterior"):
+            await buscar_precos_praticados_compras(
+                267203, "material",
+                data_compra_inicio="2026-10-30", data_compra_fim="2025-10-30",
+            )
+    fonte.assert_not_awaited()
+
+
+@pytest.mark.parametrize("data", ["30/10/2025", "20251030", "2025-13-01"])
+async def test_data_fora_do_formato_e_recusada(data):
+    with patch(_ALVO_MATERIAL, new=AsyncMock()) as fonte:
+        with pytest.raises(ValueError, match="AAAA-MM-DD"):
+            await buscar_precos_praticados_compras(
+                267203, "material", data_compra_inicio=data, data_compra_fim="2026-10-30"
+            )
+    fonte.assert_not_awaited()
+
+
+async def test_duas_datas_seguem_para_a_fonte_e_periodo_e_conferido():
+    fonte = AsyncMock(return_value={
+        "resultado": [
+            _registro_datado("2026-02-27T00:00:00", "2026-03-10T00:00:00"),
+            _registro_datado("2025-11-05T00:00:00", "2025-12-01T00:00:00"),
+        ],
+        "totalRegistros": 2,
+    })
+    with patch(_ALVO_MATERIAL, new=fonte):
+        r = await buscar_precos_praticados_compras(
+            267203, "material",
+            data_compra_inicio="2025-10-30", data_compra_fim="2026-10-30",
+        )
+    _, kwargs = fonte.call_args
+    assert kwargs["data_compra_inicio"] == "2025-10-30"
+    assert kwargs["data_compra_fim"] == "2026-10-30"
+    assert r["precos"][0]["data_compra"] == "2026-02-27T00:00:00"
+    assert r["periodo"]["criterio"] == "data_compra"
+    assert r["periodo"]["solicitado"] == {"inicio": "2025-10-30", "fim": "2026-10-30"}
+    assert r["periodo"]["observado"] == {"inicio": "2025-11-05", "fim": "2026-02-27"}
+    assert r["periodo"]["registros_fora_do_periodo"] == 0
+    assert not any("FORA do período" in a for a in r["avisos"])
+
+
+async def test_registro_fora_do_periodo_e_sinalizado():
+    """Se a fonte devolver algo fora do recorte, o Radar diz — não confia às cegas."""
+    fonte = AsyncMock(return_value={
+        "resultado": [
+            _registro_datado("2026-02-27T00:00:00", "2026-03-10T00:00:00"),
+            _registro_datado("2024-06-01T00:00:00", "2024-07-01T00:00:00"),
+        ],
+        "totalRegistros": 2,
+    })
+    with patch(_ALVO_MATERIAL, new=fonte):
+        r = await buscar_precos_praticados_compras(
+            267203, "material",
+            data_compra_inicio="2025-10-30", data_compra_fim="2026-10-30",
+        )
+    assert r["periodo"]["registros_fora_do_periodo"] == 1
+    assert any("FORA do período" in a for a in r["avisos"])
+
+
+async def test_resultado_anterior_a_compra_e_apontado_como_erro_da_fonte():
+    """Caso real do CATMAT 267203: resultado em 21/05/2025, compra em 27/02/2026."""
+    fonte = AsyncMock(return_value={
+        "resultado": [_registro_datado("2026-02-27T00:00:00", "2025-05-21T00:00:00")],
+        "totalRegistros": 1,
+    })
+    with patch(_ALVO_MATERIAL, new=fonte):
+        r = await buscar_precos_praticados_compras(
+            267203, "material",
+            data_compra_inicio="2025-10-30", data_compra_fim="2026-10-30",
+        )
+    assert r["periodo"]["registros_fora_do_periodo"] == 0, "o critério é a data da compra"
+    assert r["periodo"]["registros_com_resultado_anterior_a_compra"] == 1
+    assert any("anterior à data da compra" in a for a in r["avisos"])
+
+
+async def test_sem_datas_o_periodo_e_so_observado():
+    fonte = AsyncMock(return_value={
+        "resultado": [_registro_datado("2026-02-27T00:00:00", "2026-03-10T00:00:00")],
+        "totalRegistros": 1,
+    })
+    with patch(_ALVO_MATERIAL, new=fonte):
+        r = await buscar_precos_praticados_compras(267203, "material")
+    assert r["periodo"]["solicitado"] is None
+    assert r["periodo"]["observado"] == {"inicio": "2026-02-27", "fim": "2026-02-27"}
+    _, kwargs = fonte.call_args
+    assert kwargs["data_compra_inicio"] is None and kwargs["data_compra_fim"] is None
+
+
+async def test_servico_tambem_valida_as_datas():
+    alvo = (
+        "mcp_radardeprecos.tools.buscar_precos_praticados_compras."
+        "compras_client.consultar_precos_servico"
+    )
+    with patch(alvo, new=AsyncMock()) as fonte:
+        with pytest.raises(ValueError, match="juntas"):
+            await buscar_precos_praticados_compras(
+                3239, "servico", data_compra_inicio="2025-10-30"
+            )
+    fonte.assert_not_awaited()
