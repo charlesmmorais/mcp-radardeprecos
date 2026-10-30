@@ -16,7 +16,8 @@ e o projeto adota o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   por tool; chamadas, erros, tentativas e latência por fonte de dados; sessões
   e chamadas por cliente MCP; versão do protocolo.
 - Registro do cliente MCP de cada sessão (nome informado no handshake, sem IP
-  nem dado pessoal), também em `por_cliente` no health check.
+  nem dado pessoal), exportado só nas métricas internas — o health check
+  público continua mostrando apenas os contadores por tool.
 - Painel pronto para o Grafana em `docs/grafana/painel-radardeprecos.json`.
 - `fly.toml` com a coleta de métricas pelo Fly.io.
 
