@@ -32,7 +32,85 @@ Fontes consultadas, todas públicas e de somente leitura, sem credencial:
 - **Receita Federal** — cadastro de CNPJ (via BrasilAPI / MinhaReceita)
 - **TCU** — consulta consolidada de sanções (TCU, CNJ, CEIS, CNEP)
 
-## Início rápido
+## Teste rápido — servidor público
+
+Para experimentar sem instalar nada, use a instância pública:
+
+```
+https://mcp-radardeprecos.fly.dev/mcp
+```
+
+Não precisa de login nem de chave. A URL termina sempre em `/mcp`.
+
+### Configurando o cliente
+
+| Cliente | Como configurar |
+|---|---|
+| **Claude** (web, desktop e celular) | **Configurações → Conectores → Adicionar conector personalizado**. Nome: `Radar de Preços`; URL: a acima. Disponível nos planos Pro, Max, Team e Enterprise. |
+| **Claude Code** | `claude mcp add --transport http radardeprecos https://mcp-radardeprecos.fly.dev/mcp` |
+| **ChatGPT** | **Configurações → Apps e conectores → Avançado → Modo desenvolvedor**; depois **Criar**, informe a URL e escolha **Sem autenticação**. |
+| **VS Code** (GitHub Copilot) | Crie `.vscode/mcp.json` com o bloco abaixo. |
+| **Cursor** | Em `~/.cursor/mcp.json`, use o bloco abaixo trocando `servers` por `mcpServers` e removendo `"type"`. |
+| **Clientes só com `stdio`** | Use a ponte `mcp-remote` (requer Node.js), como no bloco abaixo. |
+
+VS Code (`.vscode/mcp.json`):
+
+```json
+{
+  "servers": {
+    "radardeprecos": {
+      "type": "http",
+      "url": "https://mcp-radardeprecos.fly.dev/mcp"
+    }
+  }
+}
+```
+
+Clientes que só aceitam `stdio` (ex.: versões antigas do Claude Desktop, em
+`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "radardeprecos": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp-radardeprecos.fly.dev/mcp"]
+    }
+  }
+}
+```
+
+### Primeiras perguntas
+
+> Faça uma pesquisa de preços para "papel A4 75g/m², resma com 500 folhas",
+> com contratações homologadas dos últimos 12 meses, e gere o relatório em Word.
+
+> Quem forneceu "serviço de limpeza predial" para órgãos federais em 2026?
+
+> Consulte a situação e as sanções do CNPJ 00.000.000/0001-91.
+
+O prompt `conduzir_pesquisa_precos` traz o roteiro completo de uma pesquisa,
+orquestrando as tools na ordem recomendada.
+
+### Verificando sem cliente
+
+```bash
+curl https://mcp-radardeprecos.fly.dev/
+```
+
+Responde com a versão, a lista de tools e contadores de uso. Para chamar as
+tools manualmente, use o [MCP Inspector](https://github.com/modelcontextprotocol/inspector)
+(`npx @modelcontextprotocol/inspector`), com transporte **Streamable HTTP** e a
+URL acima.
+
+> **Sobre a instância pública:** é um ambiente de demonstração, sem garantia de
+> disponibilidade. Tem limite de 60 requisições por minuto por origem e pode
+> levar alguns segundos para responder na primeira chamada depois de ociosa.
+> Relatórios e exportações voltam como arquivo para o cliente; nada é gravado no
+> servidor. Para uso contínuo ou institucional, hospede a sua própria instância
+> ([docs/DEPLOY.md](docs/DEPLOY.md)).
+
+## Instalação local
 
 Requer Python 3.10 ou superior.
 
@@ -51,16 +129,11 @@ Registre o servidor no seu cliente MCP. No Claude Desktop
 }
 ```
 
-Depois, peça ao assistente algo como:
+No modo local (`stdio`), os relatórios também podem ser gravados direto numa
+pasta do seu computador.
 
-> Faça uma pesquisa de preços para "papel A4 75g/m², resma com 500 folhas",
-> com contratações homologadas dos últimos 12 meses, e gere o relatório em Word.
-
-O prompt `conduzir_pesquisa_precos` traz o roteiro completo, orquestrando as
-tools na ordem recomendada.
-
-Para hospedar via HTTP (Docker, conector personalizado do Claude, ChatGPT,
-Microsoft 365 Copilot), veja **[docs/DEPLOY.md](docs/DEPLOY.md)**.
+Para hospedar via HTTP (Docker, nuvem, Microsoft 365 Copilot), veja
+**[docs/DEPLOY.md](docs/DEPLOY.md)**.
 
 ## O que ele faz
 
@@ -90,6 +163,9 @@ Microsoft 365 Copilot), veja **[docs/DEPLOY.md](docs/DEPLOY.md)**.
   chamada.
 
 ## Tools
+
+A descrição completa de cada tool — o que faz, como funciona e qual fonte
+consulta — está em **[docs/FERRAMENTAS.md](docs/FERRAMENTAS.md)**.
 
 <details>
 <summary><b>48 tools</b> — clique para expandir</summary>
@@ -238,6 +314,7 @@ semanalmente no CI para detectar mudanças nas APIs.
 
 Documentação técnica:
 
+- [Ferramentas](docs/FERRAMENTAS.md) — o que cada tool faz e de onde vêm os dados
 - [Arquitetura](docs/ARQUITETURA.md) — camadas, responsabilidades e decisões
 - [Fontes de dados](docs/FONTES_DE_DADOS.md) — endpoints usados e limitações de cada API
 - [Comportamento das fontes](docs/ACHADOS_DAS_FONTES.md) — o que foi medido nas APIs reais

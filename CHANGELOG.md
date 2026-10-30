@@ -9,6 +9,9 @@ e o projeto adota o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ### Adicionado
 
+- Seção de teste rápido no README com a instância pública e a configuração
+  de cada cliente MCP.
+- `docs/FERRAMENTAS.md`, com a descrição e a fonte de cada tool.
 - Ícone do navegador em `/favicon.ico`, liberado também quando a autenticação
   Entra ID está ativa.
 
