@@ -101,6 +101,26 @@ Anthropic, então o servidor precisa estar acessível publicamente. Veja a
 3. Em **Configurações → Apps e conectores → Modo desenvolvedor → Criar**,
    informe a URL terminada em `/mcp`, sem autenticação.
 
+### Gemini
+
+O servidor precisa estar acessível publicamente por HTTPS, como para o Claude.
+
+1. Em [gemini.google.com](https://gemini.google.com), **no navegador** (o app de
+   celular não permite adicionar conectores), abra o ícone **Personalizar** da
+   barra lateral → **[Conectores](https://gemini.google.com/customize/connectors)**.
+   Em algumas contas o caminho é **Configurações → Apps conectados**.
+2. Em **Apps personalizados**, adicione o link do conector: a URL terminada em
+   `/mcp`. Não há credencial a informar.
+3. Siga as instruções da tela para concluir.
+4. No chat, digite `@` e escolha o conector.
+
+Depois de adicionado, o conector também fica disponível no app de celular.
+Segundo a [ajuda do Google](https://support.google.com/gemini/answer/17209137),
+o recurso exige conta Google pessoal (não funciona com contas de trabalho ou
+escola) e a **Atividade nos apps do Gemini** ligada; a disponibilidade varia por
+país e idioma. O Gemini pede confirmação antes de ações que gravam algo — as
+tools deste servidor declaram quais são de leitura e quais geram arquivo.
+
 ### Microsoft 365 Copilot
 
 Exige autenticação Entra ID. Veja
