@@ -1,20 +1,29 @@
-# fly.toml app configuration file generated for mcp-radardeprecos on 2026-10-30T13:08:57Z
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
+# Configuração do app mcp-radardeprecos no Fly.io.
+# Referência: https://fly.io/docs/reference/configuration/
 
 app = 'mcp-radardeprecos'
 primary_region = 'gru'
 
 [build]
 
+[env]
+  # Métricas Prometheus numa porta interna, fora do http_service: só o coletor
+  # do Fly lê (seção [metrics]). Ver docs/DEPLOY.md, "Observabilidade".
+  RADARDEPRECOS_METRICS_PORT = '9091'
+
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = 'stop'
+  # suspend preserva a memória do processo — e com ela os contadores de uso —
+  # e retoma mais rápido que stop.
+  auto_stop_machines = 'suspend'
   auto_start_machines = true
   min_machines_running = 0
   processes = ['app']
+
+[metrics]
+  port = 9091
+  path = '/metrics'
 
 [[vm]]
   memory = '512mb'
