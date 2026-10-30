@@ -264,8 +264,9 @@ TIC — IPPC-TIC/AGU).
 
 O saneamento é governado pelo coeficiente de variação: com CV inicial de até
 25%, nada é removido; acima disso, o escore Z remove um valor por vez — o de
-maior |Z| — até atingir a meta, chegar ao piso de 3 referências ou ao limite
-de iterações. Detalhes em
+maior |Z| — até atingir a meta ou chegar ao piso de 3 referências; nesse caso,
+fica a amostra de menor CV encontrada. Em amostras de
+20 preços ou mais, excluir mais de 20% gera um aviso para revisão. Detalhes em
 [docs/BOAS_PRATICAS_PESQUISA_PRECOS.md](docs/BOAS_PRATICAS_PESQUISA_PRECOS.md).
 
 ### Modelos de relatório

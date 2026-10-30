@@ -11,6 +11,7 @@ fornecedores e o Painel de Preços).
 """
 from __future__ import annotations
 
+import collections
 import statistics
 from enum import Enum
 from typing import Any
@@ -26,9 +27,15 @@ logger = get_logger(__name__)
 _CV_ACEITAVEL_PERCENTUAL = 25.0
 # O guia recomenda ao menos 3 referências para o tratamento estatístico.
 _AMOSTRA_MINIMA_RECOMENDADA = 3
-# Limite de segurança contra loops longos em amostras patológicas (mesmo
-# padrão de limite de segurança usado pelas tools de busca deste projeto).
-_MAX_ITERACOES_SANEAMENTO = 10
+# Acima deste percentual de exclusão, o resultado traz um aviso para revisão.
+# É informativo: não muda o status. O escore Z não tem teto de iterações — para
+# na meta de CV ou no piso de 3 referências, e cada volta remove um valor, então
+# o laço sempre termina.
+_PERCENTUAL_EXCLUSAO_ALERTA = 20.0
+# O alerta só vale a partir deste tamanho de amostra. Em amostras pequenas cada
+# exclusão pesa demais no percentual: o exemplo oficial do IPPC-TIC remove 3 de
+# 8 preços (37,5%) e é o resultado correto do método.
+_AMOSTRA_MINIMA_ALERTA_EXCLUSAO = 20
 
 
 class MotivoParadaSaneamento(str, Enum):
@@ -51,8 +58,6 @@ class MotivoParadaSaneamento(str, Enum):
     #: acima da meta — reduzir a 2 para "forçar" o número não torna a amostra
     #: representativa.
     PISO_MINIMO_AMOSTRA = "piso_minimo_amostra"
-    #: Guarda: acabaram as iterações antes da meta.
-    LIMITE_ITERACOES = "limite_iteracoes"
     #: Todos os valores são iguais: o escore Z é indefinido (divisão por zero)
     #: e não há dispersão a tratar.
     DESVIO_PADRAO_ZERO = "desvio_padrao_zero"
@@ -84,14 +89,12 @@ _PARADAS_DE_SUCESSO = {
 #: alcançada. Em qualquer delas o resultado reflete onde o algoritmo parou.
 _PARADAS_QUE_INVALIDAM = {
     MotivoParadaSaneamento.PISO_MINIMO_AMOSTRA,
-    MotivoParadaSaneamento.LIMITE_ITERACOES,
     MotivoParadaSaneamento.META_NAO_ATINGIDA,
     MotivoParadaSaneamento.SEM_OUTLIER_PELO_CRITERIO,
 }
 
 #: Paradas que são um limite agindo, não um critério estatístico satisfeito.
 _PARADAS_POR_GUARDA = {
-    MotivoParadaSaneamento.LIMITE_ITERACOES,
     MotivoParadaSaneamento.PISO_MINIMO_AMOSTRA,
 }
 
@@ -245,7 +248,7 @@ def _sanear_amostra(
 
 def _sanear_amostra_escore_z(
     valores: list[float],
-) -> tuple[list[float], list[float], int, MotivoParadaSaneamento, list[dict[str, Any]]]:
+) -> tuple[list[float], list[float], int, MotivoParadaSaneamento, list[dict[str, Any]], int]:
     """Aplica o saneamento por Escore Z do IPPC-TIC (AGU/MGI, 2024, p. 70-72).
 
     Mesmo critério de parada da Média Saneada (CV = DP/M x 100 <= 25%), mas
@@ -266,7 +269,9 @@ def _sanear_amostra_escore_z(
     exatos do exemplo oficial (40,12%/35,65%/25,06%/14,48%). Desde a v0.5.15
     é a convenção de todo o módulo — ver :func:`_desvio_padrao`.
 
-    Retorna ``(amostra, excluídos, iterações, motivo_da_parada)``. O motivo
+    Retorna ``(amostra, excluídos, iterações, motivo_da_parada, histórico,
+    exclusões_revertidas)`` — a última é quantas exclusões foram desfeitas para
+    voltar à amostra de menor CV quando o piso chega antes da meta. O motivo
     separa 'cheguei à meta de CV' de 'esbarrei num guarda de
     segurança' — indistinguíveis até então, e a segunda é a que invalida o
     resultado para uso no processo.
@@ -275,6 +280,11 @@ def _sanear_amostra_escore_z(
     excluidos: list[float] = []
     historico: list[dict[str, Any]] = []
     iteracoes = 0
+    # Menor CV visto até aqui e quantas exclusões levaram a ele. Se o piso de 3
+    # chegar antes da meta, devolve-se essa amostra: remover o valor de maior
+    # |Z| às vezes AUMENTA o CV (em [1, 100, 100, 200] vai de 81% a 85%).
+    melhor_cv: float | None = None
+    melhor_iteracao = 0
 
     # Piso de 3: para ao chegar em 3 valores, mesmo com CV > 25% —
     # não degenera a amostra abaixo do mínimo recomendado só para baixar o CV.
@@ -297,6 +307,8 @@ def _sanear_amostra_escore_z(
             break
 
         cv = (dp / media * 100) if media else 0.0
+        if melhor_cv is None or cv < melhor_cv:
+            melhor_cv, melhor_iteracao = cv, iteracoes
         if cv <= _CV_ACEITAVEL_PERCENTUAL:
             motivo = (
                 MotivoParadaSaneamento.META_CV_ATINGIDA
@@ -306,10 +318,24 @@ def _sanear_amostra_escore_z(
             break
         if len(atual) <= _AMOSTRA_MINIMA_RECOMENDADA:
             motivo = MotivoParadaSaneamento.PISO_MINIMO_AMOSTRA
+            if melhor_iteracao < iteracoes:
+                # Volta à amostra de menor CV, na ordem original.
+                revertidas = iteracoes - melhor_iteracao
+                restantes = collections.Counter(excluidos[:melhor_iteracao])
+                atual = []
+                for v in valores:
+                    if restantes[v]:
+                        restantes[v] -= 1
+                    else:
+                        atual.append(v)
+                excluidos = excluidos[:melhor_iteracao]
+                historico = historico[:melhor_iteracao]
+                return atual, excluidos, melhor_iteracao, motivo, historico, revertidas
             break
-        if iteracoes >= _MAX_ITERACOES_SANEAMENTO:
-            motivo = MotivoParadaSaneamento.LIMITE_ITERACOES
-            break
+        # Sem teto de iterações: um teto fixo (era 10) interrompia amostras
+        # grandes antes da meta — 375 preços de um CATMAT precisavam de 49
+        # exclusões. O percentual excluído é informado e, acima de
+        # _PERCENTUAL_EXCLUSAO_ALERTA, gera aviso.
 
         # Remove só o valor de maior |Escore Z| desta iteração (em caso de
         # empate, o primeiro na ordem original — critério determinístico).
@@ -338,7 +364,7 @@ def _sanear_amostra_escore_z(
         )
         historico.append(registro)
 
-    return atual, excluidos, iteracoes, motivo, historico
+    return atual, excluidos, iteracoes, motivo, historico, 0
 
 
 async def calcular_preco_referencia(
@@ -352,8 +378,10 @@ async def calcular_preco_referencia(
     **Método padrão: Escore Z iterativo**. Calcula o CV da amostra;
     se já estiver em 25% ou menos, **não remove nada** — não há outlier a
     tratar numa série homogênea. Acima disso, remove **um valor por iteração**,
-    o de maior |Escore Z|, e recalcula o CV a cada remoção, até atingir a meta,
-    chegar ao piso de 3 referências ou esbarrar no limite de iterações. É o
+    o de maior |Escore Z|, e recalcula o CV a cada remoção, até atingir a meta
+    ou chegar ao piso de 3 referências; não há teto de iterações. Se o piso chega
+    antes da meta, fica a amostra de menor CV encontrada no caminho. Em amostras de
+    20 preços ou mais, excluir mais de 20% gera um aviso de revisão. É o
     método preferencial para TIC segundo o IPPC-TIC (AGU/MGI, 2024) e a
     orientação "Análise Crítica na Pesquisa de Preços" (SGD, 2026, item 1.4),
     e é o mais auditável: cada exclusão fica registrada com o CV que a
@@ -423,7 +451,7 @@ async def calcular_preco_referencia(
           ``cv_inicial_ja_aceitavel`` (nada foi removido — a série já estava
           homogênea), ``sem_outlier_pelo_criterio`` (nada ficou fora da faixa
           do método, o que NÃO implica CV na meta), ``piso_minimo_amostra``,
-          ``limite_iteracoes``, ``desvio_padrao_zero``,
+          ``desvio_padrao_zero``,
           ``passe_unico_concluido`` e ``meta_nao_atingida`` (estes dois só na
           média saneada); ``None`` em "mediana"/"minimo".
         - ``status_resultado``: ``"apto"``, ``"requer_revisao"`` ou
@@ -459,7 +487,8 @@ async def calcular_preco_referencia(
           Importa porque, numa série com dois grupos, remover outliers não
           limpa ruído: escolhe um dos grupos.
         - ``avisos``: alertas (amostra pequena, CV acima de 25% mesmo após
-          o saneamento, parada por limite de segurança, possível mistura de
+          o saneamento, parada pelo piso de 3 referências, mais de 20% da
+          amostra excluída no escore Z com 20 preços ou mais, possível mistura de
           objetos, uso do método "minimo") — não impedem o cálculo, mas
           indicam pontos a justificar na formalização da pesquisa.
     """
@@ -493,6 +522,7 @@ async def calcular_preco_referencia(
 
     valores_excluidos: list[float] = []
     iteracoes = 0
+    exclusoes_revertidas = 0
     # Sobre a amostra ORIGINAL, de propósito: depois do saneamento a lacuna
     # pode ter sido apagada justamente pela poda que ela deveria desaconselhar.
     diagnostico = distribuicao.diagnosticar(precos)
@@ -515,9 +545,10 @@ async def calcular_preco_referencia(
             "processo."
         )
     elif metodo_utilizado == "escore_z":
-        amostra_final, valores_excluidos, iteracoes, motivo_parada, historico = (
-            _sanear_amostra_escore_z(precos)
-        )
+        (
+            amostra_final, valores_excluidos, iteracoes, motivo_parada, historico,
+            exclusoes_revertidas,
+        ) = _sanear_amostra_escore_z(precos)
         preco_referencia = statistics.mean(amostra_final)
     else:
         amostra_final, valores_excluidos, iteracoes, motivo_parada, historico = (
@@ -538,6 +569,14 @@ async def calcular_preco_referencia(
         # produziam a mesma saída, e a segunda invalida o número para uso no
         # processo — foi o que manteve invisível a poda excessiva do laço
         # antigo da média saneada.
+        if exclusoes_revertidas:
+            avisos.append(
+                f"O CV não chegou a {_CV_ACEITAVEL_PERCENTUAL:.0f}% antes do piso de "
+                f"{_AMOSTRA_MINIMA_RECOMENDADA} referências, e as últimas "
+                f"{exclusoes_revertidas} exclusão(ões) aumentaram o CV em vez de "
+                "reduzi-lo. Foi mantida a amostra de menor CV encontrada "
+                f"({len(amostra_final)} preços, CV {cv_final:.1f}%)."
+            )
         if motivo_parada in _PARADAS_POR_GUARDA:
             avisos.append(
                 f"O saneamento parou por LIMITE de segurança "
@@ -567,11 +606,6 @@ async def calcular_preco_referencia(
                     "acima da meta — o método não garante alcançá-la, e repetir "
                     "o corte consumiria a amostra sem torná-la representativa."
                 )
-            elif motivo_parada == MotivoParadaSaneamento.LIMITE_ITERACOES:
-                contexto = (
-                    f"Foi atingido o limite de {_MAX_ITERACOES_SANEAMENTO} "
-                    "iterações antes da meta."
-                )
             elif motivo_parada == MotivoParadaSaneamento.SEM_OUTLIER_PELO_CRITERIO:
                 contexto = (
                     "Nenhum valor ficou fora da faixa média ± desvio-padrão, "
@@ -587,6 +621,22 @@ async def calcular_preco_referencia(
                 "agrupar_por_comparabilidade e traga à mesma base com "
                 "normalizar_precos_unidade; calcule só sobre o grupo homogêneo. "
                 "Trocar o método não torna preços heterogêneos comparáveis."
+            )
+        # Só no escore Z: a média saneada corta ~30% de qualquer amostra num
+        # passe, por definição, e o aviso viraria ruído.
+        percentual_removido = len(valores_excluidos) / len(precos) * 100
+        if (
+            metodo_utilizado == "escore_z"
+            and len(precos) >= _AMOSTRA_MINIMA_ALERTA_EXCLUSAO
+            and percentual_removido > _PERCENTUAL_EXCLUSAO_ALERTA
+        ):
+            avisos.append(
+                f"O saneamento excluiu {len(valores_excluidos)} de {len(precos)} "
+                f"preços ({percentual_removido:.1f}%), acima de "
+                f"{_PERCENTUAL_EXCLUSAO_ALERTA:.0f}% da amostra. Uma série que só "
+                "fica homogênea descartando tanto costuma misturar objetos, "
+                "apresentações ou unidades — revise os excluídos (historico_saneamento) "
+                "antes de usar o preço."
             )
 
     # Homogeneidade de UNIDADE, propagada de quem coletou a série.

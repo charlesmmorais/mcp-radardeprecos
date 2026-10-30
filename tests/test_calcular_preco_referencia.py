@@ -267,20 +267,81 @@ async def test_cv_baixo_demais_denuncia_amostra_consumida():
     assert r["estatisticas"]["coeficiente_variacao_percentual"] > 5.0
 
 
-async def test_motivo_de_parada_distingue_meta_de_desistencia():
-    """Sem isto, 'parei porque convergi' e 'parei porque desisti' eram iguais.
+async def test_escore_z_nao_para_na_decima_exclusao():
+    """Regressão: um teto fixo de 10 iterações interrompia amostras grandes.
 
-    É a mesma distinção do contrato `cobertura`, aplicada ao cálculo: um
-    limite de segurança que age precisa dizer que agiu.
+    Esta série de 200 preços precisa de 38 exclusões (19%) para chegar à meta;
+    com o teto, parava na 10ª com o CV ainda acima de 25%.
     """
-    # Amostra grande e dispersa: o escore_z remove 1 por iteração e não
-    # alcança a meta de CV dentro do teto de iterações.
     r = await calcular_preco_referencia(_lognormal(200), metodo="escore_z")
-    assert r["motivo_parada_saneamento"] == "limite_iteracoes"
-    assert any("limite" in a.lower() for a in r["avisos"]), (
-        "parada por guarda de segurança tem de aparecer nos avisos, não só "
-        "num campo que o leitor pode não consultar"
+    assert r["motivo_parada_saneamento"] == "meta_cv_atingida"
+    assert r["iteracoes_saneamento"] == 38
+    assert r["cv_final_percentual"] <= 25.0
+    assert not any("acima de 20%" in a for a in r["avisos"]), "19% fica abaixo do alerta"
+
+
+async def test_catmat_267203_chega_a_meta_sem_teto():
+    """Caso real que expôs o teto: 378 preços de comprimido de dipirona 500 mg.
+
+    Dados gravados da fonte em 30/10/2026 (tests/dados). São necessárias 49
+    exclusões (13%) para o CV cair abaixo de 25%.
+    """
+    import json
+    from pathlib import Path
+
+    dados = json.loads(
+        (Path(__file__).parent / "dados" / "catmat_267203_comprimidos.json").read_text(
+            encoding="utf-8"
+        )
     )
+    r = await calcular_preco_referencia(dados["precos"], metodo="escore_z")
+    assert r["amostra_original"]["quantidade"] == 378
+    assert r["motivo_parada_saneamento"] == "meta_cv_atingida"
+    assert r["iteracoes_saneamento"] == 49
+    assert r["cv_final_percentual"] <= 25.0
+    assert r["percentual_excluido"] == pytest.approx(12.96, abs=0.01)
+
+
+async def test_exclusao_acima_de_20_por_cento_gera_aviso():
+    """Série que só fica homogênea descartando muito: o número sai, com aviso."""
+    serie = [100.0 + i for i in range(20)] + [
+        150.0, 190.0, 240.0, 300.0, 380.0, 470.0, 600.0, 800.0,
+    ]
+    r = await calcular_preco_referencia(serie, metodo="escore_z", serie_homogenea=True)
+    assert r["motivo_parada_saneamento"] == "meta_cv_atingida"
+    assert r["iteracoes_saneamento"] == 6
+    assert r["percentual_excluido"] > 20.0
+    assert any("acima de 20%" in a for a in r["avisos"])
+
+
+async def test_no_piso_sem_meta_volta_a_amostra_de_menor_cv():
+    """Remover o maior |Z| às vezes AUMENTA o CV.
+
+    Em [1, 100, 100, 200] o CV é 81,04%; o escore Z remove o 200 (|Z| 1,228,
+    contra 1,222 do 1) e o CV sobe para 85,31%, já no piso de 3. A regra é
+    buscar CV <= 25% ou, não sendo possível, parar no menor CV com ao menos 3
+    preços — aqui, a amostra original.
+    """
+    r = await calcular_preco_referencia(
+        [1.0, 100.0, 100.0, 200.0], metodo="escore_z", serie_homogenea=True
+    )
+    assert r["motivo_parada_saneamento"] == "piso_minimo_amostra"
+    assert r["amostra_saneada"] == [1.0, 100.0, 100.0, 200.0]
+    assert r["valores_excluidos"] == []
+    assert r["iteracoes_saneamento"] == 0
+    assert r["historico_saneamento"] == []
+    assert r["cv_final_percentual"] == pytest.approx(81.04, abs=0.01)
+    assert r["status_resultado"] == "nao_apto"
+    assert any("menor CV" in a for a in r["avisos"])
+
+
+async def test_parada_por_guarda_aparece_nos_avisos():
+    """Um limite de segurança que age precisa dizer que agiu — não só num campo."""
+    r = await calcular_preco_referencia(
+        [10.0, 20.0, 30.0, 40.0, 5000.0], metodo="escore_z", serie_homogenea=True
+    )
+    assert r["motivo_parada_saneamento"] == "piso_minimo_amostra"
+    assert any("limite" in a.lower() for a in r["avisos"])
 
 
 async def test_escore_z_que_alcanca_a_meta_declara_a_meta():
@@ -478,12 +539,13 @@ async def test_bimodalidade_do_434228_e_detectada_e_declarada():
 async def test_o_aviso_de_mistura_desaconselha_o_saneamento():
     """Remover outliers numa série bimodal escolhe um cluster, não limpa ruído.
 
-    Medido no 434228: o escore_z removeu os 10 preços do grupo caro e devolveu
-    R$ 77,97 — a média do grupo barato, 4,9x abaixo. Sem este aviso, o número
-    sai com aparência de saneado.
+    Medido no 434228: o escore_z remove os 10 preços do grupo caro e devolve
+    cerca de R$ 77 — a média do grupo barato, quase 5x abaixo. Sem este aviso,
+    o número sai com aparência de saneado.
     """
     r = await calcular_preco_referencia(_CATMAT_434228, metodo="escore_z", serie_homogenea=True)
-    assert r["preco_referencia"] == pytest.approx(77.97, abs=0.01)
+    assert r["preco_referencia"] == pytest.approx(76.86, abs=0.01)
+    assert r["status_resultado"] == "nao_apto"
     assert r["diagnostico_distribuicao"]["possivel_mistura_de_objetos"] is True
     assert any("agrupar_por_comparabilidade" in a for a in r["avisos"])
 
@@ -772,7 +834,7 @@ async def test_status_apto_exige_homogeneidade_declarada():
 
 
 async def test_parada_por_guarda_nunca_e_apta():
-    """Piso, limite de iterações e meta não atingida invalidam o número."""
+    """Piso e meta não atingida invalidam o número."""
     r = await calcular_preco_referencia(
         [10.0, 20.0, 30.0, 40.0, 5000.0], serie_homogenea=True
     )
@@ -826,5 +888,5 @@ def test_o_docstring_lista_exatamente_os_motivos_do_enum():
     reais = {m.value for m in MotivoParadaSaneamento}
     for valor in reais:
         assert f"``{valor}``" in doc, f"{valor} existe no enum e não no docstring"
-    for obsoleto in ("sem_exclusoes", "limite_de_iteracoes", "piso_da_amostra"):
+    for obsoleto in ("sem_exclusoes", "limite_de_iteracoes", "limite_iteracoes", "piso_da_amostra"):
         assert obsoleto not in doc, f"{obsoleto} não existe mais e ainda é citado"

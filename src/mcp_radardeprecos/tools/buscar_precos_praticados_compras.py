@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import asyncio
 import math
+import re
 import time
+from datetime import date
 from typing import Any
 
 from ..clients import compras_client
@@ -22,6 +24,100 @@ logger = get_logger(__name__)
 #: `compras_client` aplica (`max(10, ...)`). Fica explícito aqui para que a
 #: tool e o cliente não voltem a discordar sobre a faixa válida de `limite`.
 _LIMITE_MINIMO_DA_FONTE = 10
+
+
+_FORMATO_DATA = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def _data_iso(valor: str, nome: str) -> date:
+    # Formato estrito: desde o Python 3.11, `fromisoformat` também aceita
+    # "20251030", que a fonte não entende.
+    erro = ValueError(f"{nome} deve estar no formato AAAA-MM-DD (recebido {valor!r}).")
+    if not isinstance(valor, str) or not _FORMATO_DATA.fullmatch(valor):
+        raise erro
+    try:
+        return date.fromisoformat(valor)
+    except ValueError:
+        raise erro from None
+
+
+def validar_periodo_compra(
+    data_compra_inicio: str | None, data_compra_fim: str | None
+) -> tuple[date | None, date | None]:
+    """Valida o recorte por data da compra antes de consultar a fonte.
+
+    O Compras.gov.br só aplica o filtro quando recebe as DUAS datas: com uma
+    só, devolve a série inteira, sem aviso (medido em 30/10/2026 — CATMAT
+    267203: 2.170 registros com só o início, só o fim ou nenhuma data; 408 com
+    as duas). Aceitar uma data isolada faria a série completa parecer filtrada.
+    """
+    if bool(data_compra_inicio) != bool(data_compra_fim):
+        raise ValueError(
+            "Informe data_compra_inicio e data_compra_fim juntas. Com uma só, o "
+            "Compras.gov.br ignora o filtro e devolve todos os períodos."
+        )
+    if not data_compra_inicio:
+        return None, None
+    inicio = _data_iso(data_compra_inicio, "data_compra_inicio")
+    fim = _data_iso(data_compra_fim, "data_compra_fim")
+    if inicio > fim:
+        raise ValueError(
+            f"data_compra_inicio ({inicio}) não pode ser posterior a "
+            f"data_compra_fim ({fim})."
+        )
+    return inicio, fim
+
+
+def resumir_periodo(
+    precos: list[dict[str, Any]], inicio: date | None, fim: date | None
+) -> tuple[dict[str, Any], list[str]]:
+    """Confere as datas dos registros devolvidos contra o período pedido.
+
+    O critério é a **data da compra**, que é o campo filtrado pela fonte. A
+    data do resultado vem ao lado e às vezes é anterior à da compra — erro de
+    cadastro na origem, não registro fora do período.
+    """
+    def _dia(valor: Any) -> str | None:
+        return str(valor)[:10] if valor else None
+
+    datas_compra = sorted(d for d in (_dia(p.get("data_compra")) for p in precos) if d)
+    fora = 0
+    if inicio and fim:
+        fora = sum(
+            1 for d in datas_compra if not inicio.isoformat() <= d <= fim.isoformat()
+        )
+    resultado_antes = sum(
+        1
+        for p in precos
+        if _dia(p.get("data_compra")) and _dia(p.get("data_resultado"))
+        and _dia(p.get("data_resultado")) < _dia(p.get("data_compra"))
+    )
+    resumo = {
+        "criterio": "data_compra",
+        "solicitado": (
+            {"inicio": inicio.isoformat(), "fim": fim.isoformat()} if inicio and fim else None
+        ),
+        "observado": (
+            {"inicio": datas_compra[0], "fim": datas_compra[-1]} if datas_compra else None
+        ),
+        "registros_fora_do_periodo": fora,
+        "registros_sem_data_compra": len(precos) - len(datas_compra),
+        "registros_com_resultado_anterior_a_compra": resultado_antes,
+    }
+    avisos: list[str] = []
+    if fora:
+        avisos.append(
+            f"{fora} de {len(precos)} registros têm data da compra FORA do período "
+            f"pedido ({inicio} a {fim}): a fonte não aplicou o filtro por inteiro. "
+            "Desconsidere esses registros ou refaça a consulta."
+        )
+    if resultado_antes:
+        avisos.append(
+            f"{resultado_antes} registro(s) têm data do resultado anterior à data da "
+            "compra — inconsistência de cadastro na fonte. O período foi conferido "
+            "pela data da compra."
+        )
+    return resumo, avisos
 
 
 def _formatar_preco(r: dict[str, Any], incluir_bruto: bool = False) -> dict[str, Any]:
@@ -68,6 +164,7 @@ def _formatar_preco(r: dict[str, Any], incluir_bruto: bool = False) -> dict[str,
         },
         "uf": r.get("estado"),
         "municipio": r.get("municipio"),
+        "data_compra": r.get("dataCompra"),
         "data_resultado": r.get("dataResultado"),
         "descricao_item": r.get("descricaoDetalhadaItem") or r.get("descricaoItem"),
         "pdm": {
@@ -286,10 +383,12 @@ async def buscar_precos_praticados_compras(
             "servico" não aceitava tamanho de página customizado).
         pagina: Número da página a buscar, 1-indexado (padrão 1). Ignorado
             (com aviso) quando ``buscar_todas_paginas=True``.
-        data_compra_inicio: Recorte por data da compra (YYYY-MM-DD), aplicado
-            NO SERVIDOR (v0.2.1, conforme spec oficial) — mitiga a
-            não-ordenação por data do achado v0.1.49 na origem.
-        data_compra_fim: Fim do recorte (YYYY-MM-DD).
+        data_compra_inicio: Início do recorte por **data da compra**
+            (AAAA-MM-DD), aplicado no servidor da fonte. Informe sempre junto
+            com ``data_compra_fim``: com uma data só, o Compras.gov.br ignora o
+            filtro e devolve todos os períodos — por isso a tool recusa.
+        data_compra_fim: Fim do recorte (AAAA-MM-DD), inclusive. Não pode ser
+            anterior a ``data_compra_inicio``.
         poder: "E" (Executivo), "L" (Legislativo) ou "J" (Judiciário) —
             filtro no servidor.
         esfera: "F" (Federal), "E" (Estadual), "M" (Municipal) — filtro no
@@ -312,7 +411,8 @@ async def buscar_precos_praticados_compras(
         um com ``preco_unitario``, ``quantidade``, ``unidade_fornecimento``
         (sigla/nome/capacidade), ``unidade_medida`` (sigla/nome),
         ``fornecedor`` (CNPJ/nome), ``marca`` (só para material), ``orgao``,
-        ``uasg`` (código/nome), ``uf``, ``municipio``, ``data_resultado``,
+        ``uasg`` (código/nome), ``uf``, ``municipio``, ``data_compra``
+        (critério do recorte por período), ``data_resultado``,
         ``descricao_item``, ``pdm`` (código/nome da família de produto),
         ``classe`` (código/nome), ``criterio_julgamento``,
         ``percentual_maior_desconto`` e ``id_compra``.
@@ -326,6 +426,12 @@ async def buscar_precos_praticados_compras(
         parecerá preciso apenas porque o saneamento descartou a mistura.
         Separe por unidade ou use ``normalizar_precos_unidade`` antes de
         estimar.
+
+        Traz ainda ``periodo``: o critério (``data_compra``), o período
+        ``solicitado``, o período ``observado`` nos registros devolvidos, e as
+        contagens ``registros_fora_do_periodo``, ``registros_sem_data_compra``
+        e ``registros_com_resultado_anterior_a_compra`` (erro de cadastro na
+        fonte). Registros fora do período geram aviso.
     """
     if tipo_item not in TIPOS_ITEM_CATALOGO_COMPRAS:
         raise ValueError(f"tipo_item deve ser um de {TIPOS_ITEM_CATALOGO_COMPRAS}")
@@ -336,6 +442,7 @@ async def buscar_precos_praticados_compras(
             "tipo_codigo='codigoPdm' só se aplica a tipo_item='material' "
             "(serviço não tem PDM)."
         )
+    periodo_inicio, periodo_fim = validar_periodo_compra(data_compra_inicio, data_compra_fim)
 
     # v0.5.14: o piso é o da FONTE, não uma escolha nossa. O cliente faz
     # `tamanho_pagina = max(10, ...)`, então pedir menos que 10 buscava 10
@@ -480,6 +587,9 @@ async def buscar_precos_praticados_compras(
             "registros sem unidade antes de calcular o preço de referência."
         )
 
+    periodo, avisos_periodo = resumir_periodo(precos, periodo_inicio, periodo_fim)
+    avisos.extend(avisos_periodo)
+
     # `cobertura` estruturado. Duas leituras muito diferentes do
     # mesmo retorno, que só o bloco separa:
     #
@@ -520,6 +630,7 @@ async def buscar_precos_praticados_compras(
         "quantidade_retornada": len(precos),
         "precos": precos,
         "unidades": unidades,
+        "periodo": periodo,
         "cobertura": bloco,
         "avisos": avisos,
         **paginacao,
