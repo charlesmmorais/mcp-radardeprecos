@@ -96,6 +96,7 @@ from typing import Any
 from ..config import settings
 from ..utils import cache
 from ..utils.cache import TTL_1_DIA, TTL_30_MIN
+from ..utils.codigos import normalizar_codigo_orgao, normalizar_codigo_uasg
 from .base import get_json
 
 SOURCE = "compras.gov.br"
@@ -106,7 +107,7 @@ async def consultar_contratacoes_lei14133(
     data_publicacao_pncp_inicial: str,
     data_publicacao_pncp_final: str,
     codigo_modalidade: int,
-    codigo_orgao: int | None = None,
+    codigo_orgao: str | int | None = None,
     orgao_entidade_cnpj: str | None = None,
     unidade_orgao_uf_sigla: str | None = None,
     contratacao_excluida: bool | None = False,
@@ -297,10 +298,10 @@ async def consultar_contratos(
     params = {
         "pagina": pagina,
         "tamanhoPagina": tamanho_pagina,
-        "codigoOrgao": codigo_orgao,
-        "codigoUnidadeGestora": codigo_unidade_gestora,
-        "codigoUnidadeGestoraOrigemContrato": codigo_unidade_gestora_origem_contrato,
-        "codigoUnidadeRealizadoraCompra": codigo_unidade_realizadora_compra,
+        "codigoOrgao": normalizar_codigo_orgao(codigo_orgao),
+        "codigoUnidadeGestora": normalizar_codigo_uasg(codigo_unidade_gestora),
+        "codigoUnidadeGestoraOrigemContrato": normalizar_codigo_uasg(codigo_unidade_gestora_origem_contrato),
+        "codigoUnidadeRealizadoraCompra": normalizar_codigo_uasg(codigo_unidade_realizadora_compra),
         "codigoModalidadeCompra": codigo_modalidade_compra,
         "codigoTipo": codigo_tipo,
         "codigoCategoria": codigo_categoria,
@@ -319,7 +320,7 @@ async def consultar_contratos(
 
 async def consultar_contratos_itens(
     *,
-    codigo_orgao: int,
+    codigo_orgao: str | int,
     data_vigencia_inicial_min: str,
     data_vigencia_inicial_max: str,
     codigo_unidade_gestora: str | None = None,
@@ -360,10 +361,10 @@ async def consultar_contratos_itens(
     params = {
         "pagina": pagina,
         "tamanhoPagina": tamanho_pagina,
-        "codigoOrgao": codigo_orgao,
-        "codigoUnidadeGestora": codigo_unidade_gestora,
-        "codigoUnidadeGestoraOrigemContrato": codigo_unidade_gestora_origem_contrato,
-        "codigoUnidadeRealizadoraCompra": codigo_unidade_realizadora_compra,
+        "codigoOrgao": normalizar_codigo_orgao(codigo_orgao),
+        "codigoUnidadeGestora": normalizar_codigo_uasg(codigo_unidade_gestora),
+        "codigoUnidadeGestoraOrigemContrato": normalizar_codigo_uasg(codigo_unidade_gestora_origem_contrato),
+        "codigoUnidadeRealizadoraCompra": normalizar_codigo_uasg(codigo_unidade_realizadora_compra),
         "numeroContrato": numero_contrato,
         "codigoModalidadeCompra": codigo_modalidade_compra,
         "tipoItem": tipo_item,
@@ -417,10 +418,10 @@ async def consultar_contratos_fim_vigencia(
     params = {
         "pagina": pagina,
         "tamanhoPagina": tamanho_pagina,
-        "codigoOrgao": codigo_orgao,
-        "codigoUnidadeGestora": codigo_unidade_gestora,
-        "codigoUnidadeGestoraOrigemContrato": codigo_unidade_gestora_origem_contrato,
-        "codigoUnidadeRealizadoraCompra": codigo_unidade_realizadora_compra,
+        "codigoOrgao": normalizar_codigo_orgao(codigo_orgao),
+        "codigoUnidadeGestora": normalizar_codigo_uasg(codigo_unidade_gestora),
+        "codigoUnidadeGestoraOrigemContrato": normalizar_codigo_uasg(codigo_unidade_gestora_origem_contrato),
+        "codigoUnidadeRealizadoraCompra": normalizar_codigo_uasg(codigo_unidade_realizadora_compra),
         "codigoModalidadeCompra": codigo_modalidade_compra,
         "codigoTipo": codigo_tipo,
         "codigoCategoria": codigo_categoria,
@@ -462,7 +463,7 @@ async def consultar_arp_fim_vigencia(
     params = {
         "pagina": pagina,
         "tamanhoPagina": tamanho_pagina,
-        "codigoUnidadeGerenciadora": codigo_unidade_gerenciadora,
+        "codigoUnidadeGerenciadora": normalizar_codigo_uasg(codigo_unidade_gerenciadora),
         "codigoModalidadeCompra": codigo_modalidade_compra,
         "numeroAtaRegistroPreco": numero_ata_registro_preco,
         "dataVigenciaFinalMin": data_vigencia_final_min,
@@ -528,7 +529,7 @@ async def consultar_precos_material(
         "tamanhoPagina": tamanho_pagina,
         "tipo": tipo_codigo,
         "codigo": codigo_item_catalogo,
-        "codigoUasg": codigo_uasg,
+        "codigoUasg": normalizar_codigo_uasg(codigo_uasg),
         "estado": estado,
         "codigoMunicipio": codigo_municipio,
         "dataResultado": data_resultado,
@@ -583,7 +584,7 @@ async def consultar_precos_servico(
         "pagina": pagina,
         "tamanhoPagina": tamanho_pagina,
         "codigoItemCatalogo": codigo_item_catalogo,
-        "codigoUasg": codigo_uasg,
+        "codigoUasg": normalizar_codigo_uasg(codigo_uasg),
         "estado": estado,
         "codigoMunicipio": codigo_municipio,
         "dataResultado": data_resultado,
@@ -989,7 +990,7 @@ async def consultar_uasg(
     """
     params = {
         "pagina": pagina,
-        "codigoUasg": codigo_uasg,
+        "codigoUasg": normalizar_codigo_uasg(codigo_uasg),
         "cnpjCpfOrgao": cnpj_cpf_orgao,
         "cnpjCpfOrgaoVinculado": cnpj_cpf_orgao_vinculado,
         "cnpjCpfOrgaoSuperior": cnpj_cpf_orgao_superior,
@@ -1008,7 +1009,7 @@ async def consultar_uasg(
 async def consultar_orgao(
     *,
     status_orgao: bool,
-    codigo_orgao: int | None = None,
+    codigo_orgao: str | int | None = None,
     cnpj_cpf_orgao: str | None = None,
     cnpj_cpf_orgao_vinculado: str | None = None,
     cnpj_cpf_orgao_superior: str | None = None,
@@ -1103,7 +1104,7 @@ async def consultar_arp(
     params = {
         "pagina": pagina,
         "tamanhoPagina": tamanho_pagina,
-        "codigoUnidadeGerenciadora": codigo_unidade_gerenciadora,
+        "codigoUnidadeGerenciadora": normalizar_codigo_uasg(codigo_unidade_gerenciadora),
         "codigoModalidadeCompra": codigo_modalidade_compra,
         "numeroAtaRegistroPreco": numero_ata_registro_preco,
         "dataVigenciaInicialMin": data_vigencia_inicial_min,
@@ -1120,7 +1121,7 @@ async def consultar_arp_itens(
     *,
     data_vigencia_inicial_min: str,
     data_vigencia_inicial_max: str,
-    codigo_unidade_gerenciadora: int | None = None,
+    codigo_unidade_gerenciadora: str | int | None = None,
     codigo_modalidade_compra: str | None = None,
     data_assinatura_inicial: str | None = None,
     data_assinatura_final: str | None = None,
@@ -1151,7 +1152,7 @@ async def consultar_arp_itens(
     params = {
         "pagina": pagina,
         "tamanhoPagina": tamanho_pagina,
-        "codigoUnidadeGerenciadora": codigo_unidade_gerenciadora,
+        "codigoUnidadeGerenciadora": normalizar_codigo_uasg(codigo_unidade_gerenciadora),
         "codigoModalidadeCompra": codigo_modalidade_compra,
         "dataVigenciaInicialMin": data_vigencia_inicial_min,
         "dataVigenciaInicialMax": data_vigencia_inicial_max,
@@ -1191,7 +1192,7 @@ async def consultar_arp_unidades_item(
         "pagina": pagina,
         "tamanhoPagina": tamanho_pagina,
         "numeroAta": numero_ata,
-        "unidadeGerenciadora": unidade_gerenciadora,
+        "unidadeGerenciadora": normalizar_codigo_uasg(unidade_gerenciadora),
         "numeroItem": numero_item,
         "dataAtualizacao": data_atualizacao,
     }
@@ -1221,7 +1222,7 @@ async def consultar_arp_empenhos_item(
         "pagina": pagina,
         "tamanhoPagina": tamanho_pagina,
         "numeroAta": numero_ata,
-        "unidadeGerenciadora": unidade_gerenciadora,
+        "unidadeGerenciadora": normalizar_codigo_uasg(unidade_gerenciadora),
         "dataAtualizacao": data_atualizacao,
     }
     return await get_json(
@@ -1252,9 +1253,9 @@ async def consultar_arp_adesoes_item(
         "pagina": pagina,
         "tamanhoPagina": tamanho_pagina,
         "numeroAta": numero_ata,
-        "unidadeGerenciadora": unidade_gerenciadora,
+        "unidadeGerenciadora": normalizar_codigo_uasg(unidade_gerenciadora),
         "numeroItem": numero_item,
-        "unidade": unidade,
+        "unidade": normalizar_codigo_uasg(unidade),
         "dataAtualizacao": data_atualizacao,
     }
     return await get_json(

@@ -100,7 +100,7 @@ async def test_descobrir_orgao_encontra_por_nome_ou_mnemonico(monkeypatch):
     assert resultado["tipo"] == "orgao"
     assert resultado["uf"] is None
     assert resultado["total_correspondencias"] == 1
-    assert resultado["resultados"][0]["codigo_orgao"] == 3000
+    assert resultado["resultados"][0]["codigo_orgao"] == "03000"
     assert resultado["resultados"][0]["poder"] == "Judiciário"
 
 

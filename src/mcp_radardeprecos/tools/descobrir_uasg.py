@@ -5,6 +5,7 @@ from typing import Any
 
 from ..clients import compras_client
 from ..logging_utils import get_logger
+from ..utils.codigos import normalizar_codigo_orgao, normalizar_codigo_uasg
 from ..utils.texto_busca import normalizar_para_busca
 
 logger = get_logger(__name__)
@@ -104,11 +105,11 @@ async def _descobrir_uasg(
 
     resultados: list[dict[str, Any]] = [
         {
-            "codigo_uasg": u.get("codigoUasg"),
+            "codigo_uasg": normalizar_codigo_uasg(u.get("codigoUasg")),
             "nome_uasg": u.get("nomeUasg"),
             "uf": u.get("siglaUf"),
             "municipio": u.get("nomeMunicipioIbge"),
-            "codigo_orgao": u.get("codigoOrgao"),
+            "codigo_orgao": normalizar_codigo_orgao(u.get("codigoOrgao")),
             "cnpj_orgao": u.get("cnpjCpfOrgao"),
             "uso_sisg": u.get("usoSisg"),
         }
@@ -144,7 +145,7 @@ async def _descobrir_orgao(termo_norm: str, termo_busca: str, limite: int) -> di
 
     resultados: list[dict[str, Any]] = [
         {
-            "codigo_orgao": o.get("codigoOrgao"),
+            "codigo_orgao": normalizar_codigo_orgao(o.get("codigoOrgao")),
             "nome_orgao": o.get("nomeOrgao"),
             "cnpj_orgao": o.get("cnpjCpfOrgao"),
             "poder": o.get("poder"),
