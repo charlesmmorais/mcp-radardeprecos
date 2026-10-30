@@ -35,7 +35,12 @@ def test_exporta_tools_fontes_clientes_e_sessoes():
 
     assert 'radardeprecos_tool_chamadas_total{tool="buscar_pncp_texto"} 2.0' in texto
     assert 'radardeprecos_tool_erros_total{tool="buscar_pncp_texto"} 1.0' in texto
-    assert 'radardeprecos_tool_duracao_segundos{tool="buscar_pncp_texto",quantil="p95"}' in texto
+    # A ordem dos rótulos na saída depende da versão da biblioteca.
+    assert any(
+        linha.startswith("radardeprecos_tool_duracao_segundos{")
+        and 'tool="buscar_pncp_texto"' in linha and 'quantil="p95"' in linha
+        for linha in texto.splitlines()
+    )
     assert 'radardeprecos_fonte_chamadas_total{fonte="PNCP"} 1.0' in texto
     assert 'radardeprecos_fonte_tentativas_total{fonte="PNCP"} 3.0' in texto
     assert 'radardeprecos_cliente_sessoes_total{cliente="claude-ai"} 1.0' in texto
