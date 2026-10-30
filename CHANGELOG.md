@@ -7,6 +7,25 @@ e o projeto adota o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+### Corrigido
+
+- Códigos de órgão e de UASG perdiam o zero à esquerda e a consulta voltava
+  vazia, sem aviso: `consultar_contratos_compras(codigo_orgao=3000)` respondia
+  que o TCU não tinha contratos, enquanto `03000` traz os 5 da vigência. O
+  Compras.gov.br devolve o código do órgão como número, mas os filtros só
+  reconhecem o código com o zero. Todo código de órgão (5 dígitos) e de UASG
+  (6 dígitos) passa a ir completo à fonte, venha como número ou texto — em
+  contratos, itens de contrato, atas, vencimentos e preços praticados.
+- `descobrir_uasg` devolve `codigo_orgao` já com o zero à esquerda, pronto para
+  as outras tools.
+- `buscar_arp_compras` não converte mais a UASG para número ao buscar os itens
+  de cada ata.
+
+### Adicionado
+
+- `consultar_contratos_compras` e `consultar_itens_contrato_compras` avisam
+  quando o resultado vem vazio, com o código usado e como conferi-lo.
+
 ## [1.1.0] — 2026-10-30
 
 ### Adicionado

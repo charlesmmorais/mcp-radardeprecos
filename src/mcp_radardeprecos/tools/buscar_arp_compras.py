@@ -294,7 +294,7 @@ async def buscar_arp_compras(
                     resposta_itens = await compras_client.consultar_arp_itens(
                         data_vigencia_inicial_min=data_vig,
                         data_vigencia_inicial_max=data_vig,
-                        codigo_unidade_gerenciadora=int(unidade),
+                        codigo_unidade_gerenciadora=unidade,
                         numero_compra=ata.get("numero_compra"),
                         # filtro NO SERVIDOR —
                         # diferente do filtro por número de ata logo abaixo

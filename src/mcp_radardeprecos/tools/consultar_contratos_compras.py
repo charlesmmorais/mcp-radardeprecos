@@ -28,6 +28,7 @@ from typing import Any
 
 from ..clients import compras_client
 from ..logging_utils import get_logger
+from ..utils.codigos import normalizar_codigo_orgao
 from ..utils.datas import janela_dias_atras_iso
 from ..utils.documentos import mascarar_documento
 from ..utils.numeros import identificador
@@ -84,7 +85,7 @@ def _formatar_contrato(bruto: dict[str, Any], incluir_bruto: bool = False) -> di
 
 
 async def consultar_contratos_compras(
-    codigo_orgao: int,
+    codigo_orgao: str,
     data_vigencia_inicial_min: str | None = None,
     data_vigencia_inicial_max: str | None = None,
     janela_dias: int = 365,
@@ -109,7 +110,8 @@ async def consultar_contratos_compras(
     unitário por item de catálogo.
 
     Args:
-        codigo_orgao: Código do órgão (**obrigatório** — não é o CNPJ; use
+        codigo_orgao: Código do órgão com 5 dígitos, como texto (ex.: "03000";
+            aceita 3000 e completa o zero). **Obrigatório** — não é o CNPJ; use
             ``descobrir_uasg`` com ``tipo="orgao"`` para descobrir o código a
             partir do nome).
         data_vigencia_inicial_min: Início do intervalo de vigência inicial
@@ -144,6 +146,9 @@ async def consultar_contratos_compras(
         ValueError: se só uma das datas de vigência for informada, ou se
             ``janela_dias`` ultrapassar 365.
     """
+    codigo_orgao = normalizar_codigo_orgao(codigo_orgao)
+    if not codigo_orgao:
+        raise ValueError("codigo_orgao é obrigatório (ex.: '03000' para o TCU)")
     if (data_vigencia_inicial_min is None) != (data_vigencia_inicial_max is None):
         raise ValueError(
             "informe data_vigencia_inicial_min e data_vigencia_inicial_max juntos, "
@@ -186,6 +191,14 @@ async def consultar_contratos_compras(
             f"informados, mas só {len(contratos)} foram retornados (limite={limite}). "
             "Restrinja por ni_fornecedor/numero_contrato/codigo_tipo/codigo_categoria, ou "
             "aumente limite, se esperava mais resultados."
+        )
+
+    if not contratos:
+        avisos.append(
+            f"Nenhum registro para o órgão {codigo_orgao} com vigência inicial entre "
+            f"{data_vigencia_inicial_min} e {data_vigencia_inicial_max}. Confira o código do "
+            "órgão (5 dígitos, com zero à esquerda — ex.: '03000'), que não é o código da "
+            "UASG nem o CNPJ; descobrir_uasg(tipo='orgao') mostra o código pelo nome."
         )
 
     # campos padronizados, aditivos —

@@ -86,7 +86,7 @@ async def test_repassa_codigo_orgao_obrigatorio():
             data_vigencia_inicial_max="2026-07-01",
         )
     _, kwargs = mock_itens.call_args
-    assert kwargs["codigo_orgao"] == 25201
+    assert kwargs["codigo_orgao"] == "25201"
 
 
 async def test_retorna_itens_formatados():
