@@ -17,8 +17,8 @@
 
 ---
 
-O **mcp-radardeprecos** dá a assistentes de IA (Claude, ChatGPT, Microsoft
-365 Copilot e outros clientes MCP) acesso às fontes oficiais de compras
+O **mcp-radardeprecos** dá a assistentes de IA (Claude, ChatGPT, Gemini,
+Microsoft 365 Copilot e outros clientes MCP) acesso às fontes oficiais de compras
 públicas e às rotinas de uma pesquisa de preços conforme a
 **IN SEGES/ME nº 65/2021**: da busca de referências ao cálculo do preço
 estimado e à formalização em Excel e Word.
@@ -49,6 +49,7 @@ Não precisa de login nem de chave. A URL termina sempre em `/mcp`.
 | **Claude** (web, desktop e celular) | **Configurações → Conectores → Adicionar conector personalizado**. Nome: `Radar de Preços`; URL: a acima. Disponível nos planos Pro, Max, Team e Enterprise. |
 | **Claude Code** | `claude mcp add --transport http radardeprecos https://mcp-radardeprecos.fly.dev/mcp` |
 | **ChatGPT** | **Configurações → Apps e conectores → Avançado → Modo desenvolvedor**; depois **Criar**, informe a URL e escolha **Sem autenticação**. |
+| **Gemini** | Em [gemini.google.com](https://gemini.google.com), na web: ícone **Personalizar** da barra lateral → **[Conectores](https://gemini.google.com/customize/connectors)** → adicione um conector personalizado com a URL. No chat, chame-o digitando `@`. Depois de adicionado, funciona também no app de celular. |
 | **VS Code** (GitHub Copilot) | Crie `.vscode/mcp.json` com o bloco abaixo. |
 | **Cursor** | Em `~/.cursor/mcp.json`, use o bloco abaixo trocando `servers` por `mcpServers` e removendo `"type"`. |
 | **Clientes só com `stdio`** | Use a ponte `mcp-remote` (requer Node.js), como no bloco abaixo. |
