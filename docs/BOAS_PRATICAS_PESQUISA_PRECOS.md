@@ -77,8 +77,8 @@ referência de preço.
   três elementos, indica amostra homogênea.
 - **Escore Z iterativo (padrão).** Se o CV inicial passa de 25%, remove-se a
   cada iteração apenas o valor de maior |Z|, com Z = (V − M) / DP, e
-  recalcula-se o CV, até atingir 25% ou chegar a três valores. É o método do
-  IPPC-TIC. Em amostras de 20 preços ou mais, excluir mais de 20% gera um aviso
+  recalcula-se o CV, até atingir 25% ou chegar a três valores — nesse caso,
+  fica a amostra de menor CV encontrada. É o método do IPPC-TIC. Em amostras de 20 preços ou mais, excluir mais de 20% gera um aviso
   para revisão: série que só fica homogênea descartando tanto costuma misturar
   objetos ou unidades.
 - **Média saneada** (Acórdão TCU 355/2019-P): exclui de uma vez os valores

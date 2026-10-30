@@ -11,6 +11,7 @@ fornecedores e o Painel de Preços).
 """
 from __future__ import annotations
 
+import collections
 import statistics
 from enum import Enum
 from typing import Any
@@ -247,7 +248,7 @@ def _sanear_amostra(
 
 def _sanear_amostra_escore_z(
     valores: list[float],
-) -> tuple[list[float], list[float], int, MotivoParadaSaneamento, list[dict[str, Any]]]:
+) -> tuple[list[float], list[float], int, MotivoParadaSaneamento, list[dict[str, Any]], int]:
     """Aplica o saneamento por Escore Z do IPPC-TIC (AGU/MGI, 2024, p. 70-72).
 
     Mesmo critério de parada da Média Saneada (CV = DP/M x 100 <= 25%), mas
@@ -277,6 +278,11 @@ def _sanear_amostra_escore_z(
     excluidos: list[float] = []
     historico: list[dict[str, Any]] = []
     iteracoes = 0
+    # Menor CV visto até aqui e quantas exclusões levaram a ele. Se o piso de 3
+    # chegar antes da meta, devolve-se essa amostra: remover o valor de maior
+    # |Z| às vezes AUMENTA o CV (em [1, 100, 100, 200] vai de 81% a 85%).
+    melhor_cv: float | None = None
+    melhor_iteracao = 0
 
     # Piso de 3: para ao chegar em 3 valores, mesmo com CV > 25% —
     # não degenera a amostra abaixo do mínimo recomendado só para baixar o CV.
@@ -299,6 +305,8 @@ def _sanear_amostra_escore_z(
             break
 
         cv = (dp / media * 100) if media else 0.0
+        if melhor_cv is None or cv < melhor_cv:
+            melhor_cv, melhor_iteracao = cv, iteracoes
         if cv <= _CV_ACEITAVEL_PERCENTUAL:
             motivo = (
                 MotivoParadaSaneamento.META_CV_ATINGIDA
@@ -308,6 +316,19 @@ def _sanear_amostra_escore_z(
             break
         if len(atual) <= _AMOSTRA_MINIMA_RECOMENDADA:
             motivo = MotivoParadaSaneamento.PISO_MINIMO_AMOSTRA
+            if melhor_iteracao < iteracoes:
+                # Volta à amostra de menor CV, na ordem original.
+                revertidas = iteracoes - melhor_iteracao
+                restantes = collections.Counter(excluidos[:melhor_iteracao])
+                atual = []
+                for v in valores:
+                    if restantes[v]:
+                        restantes[v] -= 1
+                    else:
+                        atual.append(v)
+                excluidos = excluidos[:melhor_iteracao]
+                historico = historico[:melhor_iteracao]
+                return atual, excluidos, melhor_iteracao, motivo, historico, revertidas
             break
         # Sem teto de iterações: um teto fixo (era 10) interrompia amostras
         # grandes antes da meta — 375 preços de um CATMAT precisavam de 49
@@ -341,7 +362,7 @@ def _sanear_amostra_escore_z(
         )
         historico.append(registro)
 
-    return atual, excluidos, iteracoes, motivo, historico
+    return atual, excluidos, iteracoes, motivo, historico, 0
 
 
 async def calcular_preco_referencia(
@@ -356,7 +377,8 @@ async def calcular_preco_referencia(
     se já estiver em 25% ou menos, **não remove nada** — não há outlier a
     tratar numa série homogênea. Acima disso, remove **um valor por iteração**,
     o de maior |Escore Z|, e recalcula o CV a cada remoção, até atingir a meta
-    ou chegar ao piso de 3 referências; não há teto de iterações. Em amostras de
+    ou chegar ao piso de 3 referências; não há teto de iterações. Se o piso chega
+    antes da meta, fica a amostra de menor CV encontrada no caminho. Em amostras de
     20 preços ou mais, excluir mais de 20% gera um aviso de revisão. É o
     método preferencial para TIC segundo o IPPC-TIC (AGU/MGI, 2024) e a
     orientação "Análise Crítica na Pesquisa de Preços" (SGD, 2026, item 1.4),
@@ -498,6 +520,7 @@ async def calcular_preco_referencia(
 
     valores_excluidos: list[float] = []
     iteracoes = 0
+    exclusoes_revertidas = 0
     # Sobre a amostra ORIGINAL, de propósito: depois do saneamento a lacuna
     # pode ter sido apagada justamente pela poda que ela deveria desaconselhar.
     diagnostico = distribuicao.diagnosticar(precos)
@@ -520,9 +543,10 @@ async def calcular_preco_referencia(
             "processo."
         )
     elif metodo_utilizado == "escore_z":
-        amostra_final, valores_excluidos, iteracoes, motivo_parada, historico = (
-            _sanear_amostra_escore_z(precos)
-        )
+        (
+            amostra_final, valores_excluidos, iteracoes, motivo_parada, historico,
+            exclusoes_revertidas,
+        ) = _sanear_amostra_escore_z(precos)
         preco_referencia = statistics.mean(amostra_final)
     else:
         amostra_final, valores_excluidos, iteracoes, motivo_parada, historico = (
@@ -543,6 +567,14 @@ async def calcular_preco_referencia(
         # produziam a mesma saída, e a segunda invalida o número para uso no
         # processo — foi o que manteve invisível a poda excessiva do laço
         # antigo da média saneada.
+        if exclusoes_revertidas:
+            avisos.append(
+                f"O CV não chegou a {_CV_ACEITAVEL_PERCENTUAL:.0f}% antes do piso de "
+                f"{_AMOSTRA_MINIMA_RECOMENDADA} referências, e as últimas "
+                f"{exclusoes_revertidas} exclusão(ões) aumentaram o CV em vez de "
+                "reduzi-lo. Foi mantida a amostra de menor CV encontrada "
+                f"({len(amostra_final)} preços, CV {cv_final:.1f}%)."
+            )
         if motivo_parada in _PARADAS_POR_GUARDA:
             avisos.append(
                 f"O saneamento parou por LIMITE de segurança "

@@ -314,6 +314,27 @@ async def test_exclusao_acima_de_20_por_cento_gera_aviso():
     assert any("acima de 20%" in a for a in r["avisos"])
 
 
+async def test_no_piso_sem_meta_volta_a_amostra_de_menor_cv():
+    """Remover o maior |Z| às vezes AUMENTA o CV.
+
+    Em [1, 100, 100, 200] o CV é 81,04%; o escore Z remove o 200 (|Z| 1,228,
+    contra 1,222 do 1) e o CV sobe para 85,31%, já no piso de 3. A regra é
+    buscar CV <= 25% ou, não sendo possível, parar no menor CV com ao menos 3
+    preços — aqui, a amostra original.
+    """
+    r = await calcular_preco_referencia(
+        [1.0, 100.0, 100.0, 200.0], metodo="escore_z", serie_homogenea=True
+    )
+    assert r["motivo_parada_saneamento"] == "piso_minimo_amostra"
+    assert r["amostra_saneada"] == [1.0, 100.0, 100.0, 200.0]
+    assert r["valores_excluidos"] == []
+    assert r["iteracoes_saneamento"] == 0
+    assert r["historico_saneamento"] == []
+    assert r["cv_final_percentual"] == pytest.approx(81.04, abs=0.01)
+    assert r["status_resultado"] == "nao_apto"
+    assert any("menor CV" in a for a in r["avisos"])
+
+
 async def test_parada_por_guarda_aparece_nos_avisos():
     """Um limite de segurança que age precisa dizer que agiu — não só num campo."""
     r = await calcular_preco_referencia(
@@ -518,12 +539,13 @@ async def test_bimodalidade_do_434228_e_detectada_e_declarada():
 async def test_o_aviso_de_mistura_desaconselha_o_saneamento():
     """Remover outliers numa série bimodal escolhe um cluster, não limpa ruído.
 
-    Medido no 434228: o escore_z removeu os 10 preços do grupo caro e devolveu
-    R$ 77,97 — a média do grupo barato, 4,9x abaixo. Sem este aviso, o número
-    sai com aparência de saneado.
+    Medido no 434228: o escore_z remove os 10 preços do grupo caro e devolve
+    cerca de R$ 77 — a média do grupo barato, quase 5x abaixo. Sem este aviso,
+    o número sai com aparência de saneado.
     """
     r = await calcular_preco_referencia(_CATMAT_434228, metodo="escore_z", serie_homogenea=True)
-    assert r["preco_referencia"] == pytest.approx(77.97, abs=0.01)
+    assert r["preco_referencia"] == pytest.approx(76.86, abs=0.01)
+    assert r["status_resultado"] == "nao_apto"
     assert r["diagnostico_distribuicao"]["possivel_mistura_de_objetos"] is True
     assert any("agrupar_por_comparabilidade" in a for a in r["avisos"])
 

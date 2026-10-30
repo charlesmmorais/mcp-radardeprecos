@@ -14,8 +14,10 @@ e o projeto adota o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 - `calcular_preco_referencia`: o escore Z parava na 10ª exclusão, mesmo longe
   da meta de CV. Amostras grandes ficavam como `nao_apto` sem chegar ao preço
   (378 preços do CATMAT 267203 precisam de 49 exclusões). O teto de iterações
-  foi removido: o saneamento para na meta de CV ou no piso de 3 referências. O
-  motivo de parada `limite_iteracoes` deixa de existir.
+  foi removido: o saneamento busca CV ≤ 25% e, se chegar ao piso de 3
+  referências antes, fica com a amostra de menor CV encontrada no caminho —
+  remover o maior |Z| às vezes aumenta o CV. O motivo de parada
+  `limite_iteracoes` deixa de existir.
 - `buscar_precos_praticados_compras`: uma data de compra informada sozinha era
   aceita, mas o Compras.gov.br ignora o filtro nesse caso e devolve todos os
   períodos — a série inteira parecia filtrada. A tool agora exige as duas datas,

@@ -201,7 +201,8 @@ DIRETRIZES_PESQUISA_PRECOS: dict[str, Any] = {
         "tool": "calcular_preco_referencia",
         "escore_z": "Método padrão. Se o Coeficiente de Variação (CV) passa "
         "de 25%, remove um valor por vez — o de maior |Escore Z| — até CV ≤ 25% "
-        "ou o piso de 3 referências (IPPC-TIC, AGU/MGI 2024). Com CV inicial "
+        "ou o piso de 3 referências (IPPC-TIC, AGU/MGI 2024); no piso sem a meta, "
+        "fica a amostra de menor CV encontrada. Com CV inicial "
         "de até 25%, nada é removido. Em amostras de 20 preços ou mais, excluir "
         "mais de 20% pede revisão.",
         "media_saneada": "Média ± desvio-padrão em passe único (Acórdão TCU "

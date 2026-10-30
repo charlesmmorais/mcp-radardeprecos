@@ -225,8 +225,8 @@ composto etc.). Informativa: nunca descarta nada. *Fonte:* sem acesso externo.
 cesta. *Como:* o padrão é o **escore Z iterativo**, governado pelo coeficiente
 de variação: com CV inicial de até 25% nada é removido (série homogênea não tem
 outlier a tratar); acima disso, remove um valor por iteração — o de maior |Z| —
-e recalcula o CV até atingir a meta ou o piso de 3 referências, sem teto de
-iterações; com 20 preços ou mais, excluir acima de 20% gera aviso de revisão. Toda execução informa `motivo_parada_saneamento`, o CV antes e
+e recalcula o CV até atingir a meta ou o piso de 3 referências (nesse caso, fica
+a amostra de menor CV encontrada), sem teto de iterações; com 20 preços ou mais, excluir acima de 20% gera aviso de revisão. Toda execução informa `motivo_parada_saneamento`, o CV antes e
 depois, o `percentual_excluido` e o `historico_saneamento`, com uma linha por
 exclusão. Quando a série parece misturar dois objetos sob o mesmo código de
 catálogo, o resultado sai com `status_resultado: "nao_apto"` e
