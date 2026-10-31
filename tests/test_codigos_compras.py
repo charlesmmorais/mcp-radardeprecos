@@ -130,3 +130,19 @@ async def test_codigo_orgao_vazio_e_recusado_sem_chamar_a_fonte():
     ), pytest.raises(ValueError, match="obrigatório"):
         await consultar_contratos_compras(codigo_orgao="")
     mock.assert_not_awaited()
+
+
+@pytest.mark.parametrize("codigo", [3000, "3000", "03000"])
+@pytest.mark.parametrize(
+    "tool, metodo",
+    [("consultar_contratos_compras", "consultar_contratos"),
+     ("consultar_itens_contrato_compras", "consultar_contratos_itens")],
+)
+async def test_protocolo_mcp_aceita_codigo_como_numero_ou_texto(tool, metodo, codigo):
+    """Pela validação do MCP: o parâmetro já foi ``int``; clientes ainda mandam número."""
+    from mcp_radardeprecos import server
+
+    mock = AsyncMock(return_value=_VAZIO)
+    with patch(f"mcp_radardeprecos.tools.{tool}.compras_client.{metodo}", new=mock):
+        await server.mcp.call_tool(tool, {"codigo_orgao": codigo})
+    assert mock.await_args.kwargs["codigo_orgao"] == "03000"
