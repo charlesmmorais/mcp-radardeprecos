@@ -85,7 +85,7 @@ def _formatar_item(bruto: dict[str, Any], incluir_bruto: bool = False) -> dict[s
 
 
 async def consultar_itens_contrato_compras(
-    codigo_orgao: str,
+    codigo_orgao: str | int,
     data_vigencia_inicial_min: str | None = None,
     data_vigencia_inicial_max: str | None = None,
     janela_dias: int = 365,
