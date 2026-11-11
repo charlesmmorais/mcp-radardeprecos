@@ -62,6 +62,50 @@ class UpstreamError(RuntimeError):
         self.status_code = status_code
 
 
+class BloqueioFirewallError(UpstreamError):
+    """A fonte recusou a requisição no firewall de aplicações (WAF).
+
+    Medido no TCU (certidoes-apf) em 30/10 e 11/11/2026: status 200 com uma
+    página HTML "Requisição rejeitada", tanto da rede residencial quanto do
+    Fly. Não é transitório nem se resolve repetindo; o bloqueio é da origem.
+    """
+
+
+#: Trechos da página de bloqueio do firewall de aplicações (WAF).
+_MARCAS_BLOQUEIO_FIREWALL = ("requisição rejeitada", "requisi&ccedil;&atilde;o rejeitada", "firewall")
+
+
+def _erro_corpo_nao_json(source: str, response: httpx.Response) -> UpstreamError:
+    """Erro claro para um 2xx cujo corpo não é JSON (HTML de bloqueio, página de erro)."""
+    texto = response.text[:2000]
+    tipo = response.headers.get("content-type", "?")
+    if any(marca in texto.lower() for marca in _MARCAS_BLOQUEIO_FIREWALL):
+        return BloqueioFirewallError(
+            source,
+            response.status_code,
+            "a fonte recusou a consulta no firewall de aplicações (página "
+            "'Requisição rejeitada'). O bloqueio é da origem da requisição e "
+            "não se resolve repetindo; consulte manualmente no site da fonte.",
+        )
+    if "html" in tipo.lower() or texto.lstrip()[:15].lower().startswith(("<!doctype", "<html")):
+        # Página HTML no lugar dos dados: em 11/11/2026 o TCU passou a devolver
+        # uma página de verificação em JavaScript em vez da "Requisição
+        # rejeitada". O conteúdo não é repassado — não ajuda quem lê.
+        return UpstreamError(
+            source,
+            response.status_code,
+            "a fonte respondeu com uma página HTML em vez de dados (resposta "
+            "não é JSON) — provável bloqueio anti-robô ou manutenção. Consulte "
+            "manualmente no site da fonte.",
+        )
+    return UpstreamError(
+        source,
+        response.status_code,
+        f"a fonte respondeu com conteúdo que não é JSON ({tipo}): "
+        f"{' '.join(texto[:200].split())}",
+    )
+
+
 #: Status HTTP tratados como transitórios (vale a pena re-tentar).
 #: 429 = rate limit upstream; 502/503/504 = indisponibilidade momentânea.
 #: Demais 4xx (400, 404, 422...) são erros de validação — nunca retryados.
@@ -380,7 +424,10 @@ async def _executar(
             # None, deixando o chamador decidir (mesma semântica do 204).
             if not response.content:
                 return None
-            resultado = response.json()
+            try:
+                resultado = response.json()
+            except ValueError:
+                raise _erro_corpo_nao_json(source, response) from None
             if cache_key is not None and cache_ttl_seconds is not None:
                 cache.set(cache_key, resultado, cache_ttl_seconds)
             return resultado

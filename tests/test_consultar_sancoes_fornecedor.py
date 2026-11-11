@@ -124,10 +124,112 @@ async def test_apontamento_em_uma_fonte_marca_tem_apontamento():
 
 
 @respx.mock
-async def test_resposta_vazia_vira_upstream_error():
+async def test_resposta_vazia_vira_nao_verificado():
     respx.get(_URL).mock(return_value=httpx.Response(200, text=""))
-    with pytest.raises(UpstreamError):
-        await consultar_sancoes_fornecedor(cnpj=CNPJ_LIMPO)
+    r = await consultar_sancoes_fornecedor(cnpj=CNPJ_LIMPO)
+    assert r["consulta_realizada"] is False
+    assert r["tem_apontamento"] is None
+    assert "resposta vazia" in r["motivo"]
+    assert r["bloqueio_firewall"] is False
+
+
+# --- firewall do TCU: 200 com HTML "Requisição rejeitada" (medido 30/10 e 11/11/2026)
+
+_PAGINA_BLOQUEIO = (
+    "<html><head><title>Requisi&ccedil;&atilde;o rejeitada</title></head><body>"
+    "O acesso a este recurso foi bloqueado pela solu&ccedil;&atilde;o de firewall "
+    "de aplica&ccedil;&otilde;es do Tribunal de Contas da Uni&atilde;o.</body></html>"
+)
+
+
+@respx.mock
+async def test_bloqueio_do_firewall_vira_nao_verificado_com_caminho_manual():
+    respx.get(_URL).mock(
+        return_value=httpx.Response(200, text=_PAGINA_BLOQUEIO, headers={"content-type": "text/html"})
+    )
+    r = await consultar_sancoes_fornecedor(cnpj=CNPJ_LIMPO)
+    assert r["consulta_realizada"] is False
+    assert r["bloqueio_firewall"] is True
+    assert r["tem_apontamento"] is None
+    assert r["fontes"] == []
+    assert "firewall" in r["motivo"]
+    assert "NÃO VERIFICADO" in r["aviso"] and "nada consta" in r["aviso"]
+    assert r["link_consulta_manual"].startswith("https://certidoes-apf.apps.tcu.gov.br")
+
+
+@respx.mock
+async def test_get_json_converte_html_de_bloqueio_em_erro_claro():
+    respx.get(_URL).mock(return_value=httpx.Response(200, text=_PAGINA_BLOQUEIO))
+    with pytest.raises(base_mod.BloqueioFirewallError, match="firewall"):
+        await tcu_client.consultar_certidoes_pj(CNPJ_LIMPO)
+
+
+@respx.mock
+async def test_get_json_converte_outro_corpo_nao_json_em_upstream_error():
+    respx.get(_URL).mock(
+        return_value=httpx.Response(200, text="<html>manutenção</html>", headers={"content-type": "text/html"})
+    )
+    with pytest.raises(UpstreamError, match="página HTML") as exc:
+        await tcu_client.consultar_certidoes_pj(CNPJ_LIMPO)
+    assert not isinstance(exc.value, base_mod.BloqueioFirewallError)
+    assert "manutenção</html>" not in str(exc.value)
+
+
+@respx.mock
+async def test_get_json_corpo_texto_nao_json_mostra_trecho():
+    respx.get(_URL).mock(
+        return_value=httpx.Response(200, text="erro interno", headers={"content-type": "text/plain"})
+    )
+    with pytest.raises(UpstreamError, match="não é JSON .*erro interno"):
+        await tcu_client.consultar_certidoes_pj(CNPJ_LIMPO)
+
+
+# --- base que não respondeu: consulta parcial, nunca apontamento ------------
+
+
+@pytest.mark.parametrize(
+    "situacao, observacao",
+    [("SISTEMA_INDISPONIVEL", None), ("Sistema indisponível", None), (None, None),
+     ("ERRO_CONSULTA", None), ("NAO_CONSULTADO", "Sistema indisponível")],
+)
+@respx.mock
+async def test_base_indisponivel_e_nao_verificada_e_nao_apontamento(situacao, observacao):
+    resposta = _resposta(["NADA_CONSTA", situacao, "NADA_CONSTA", "NADA_CONSTA"])
+    resposta["certidoes"][1]["observacao"] = observacao
+    respx.get(_URL).mock(return_value=httpx.Response(200, json=resposta))
+    r = await consultar_sancoes_fornecedor(cnpj=CNPJ_LIMPO)
+    cnia = r["fontes"][1]
+    assert cnia["resultado"] == "nao_verificada"
+    assert cnia["tem_apontamento"] is False
+    assert r["tem_apontamento"] is False
+    assert r["consulta_realizada"] is True
+    assert r["consulta_completa"] is False
+    assert r["resumo"]["nada_consta"] == 3
+    assert r["resumo"]["fontes_nao_verificadas"] == ["CNIA"]
+    assert "CONSULTA PARCIAL" in r["aviso"] and "CNIA" in r["aviso"]
+
+
+@respx.mock
+async def test_apontamento_continua_apontamento_mesmo_com_base_indisponivel():
+    respx.get(_URL).mock(
+        return_value=httpx.Response(
+            200, json=_resposta(["CONSTA", "SISTEMA_INDISPONIVEL", "NADA_CONSTA", "NADA_CONSTA"])
+        )
+    )
+    r = await consultar_sancoes_fornecedor(cnpj=CNPJ_LIMPO)
+    assert r["tem_apontamento"] is True
+    assert r["resumo"]["fontes_com_apontamento"] == ["Inidôneos"]
+    assert r["resumo"]["fontes_nao_verificadas"] == ["CNIA"]
+    assert r["aviso"].index("ATENÇÃO") < r["aviso"].index("CONSULTA PARCIAL")
+
+
+@respx.mock
+async def test_todas_nada_consta_e_consulta_completa():
+    respx.get(_URL).mock(return_value=httpx.Response(200, json=_resposta(["NADA_CONSTA"] * 4)))
+    r = await consultar_sancoes_fornecedor(cnpj=CNPJ_LIMPO)
+    assert r["consulta_completa"] is True
+    assert r["resumo"]["nao_verificadas"] == 0
+    assert "CONSULTA PARCIAL" not in r["aviso"]
 
 
 # --- cliente: monta a URL certa e passa seEmitirPDF=false -------------------
