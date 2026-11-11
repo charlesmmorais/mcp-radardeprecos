@@ -20,6 +20,17 @@ e o projeto adota o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   as outras tools.
 - `buscar_arp_compras` não converte mais a UASG para número ao buscar os itens
   de cada ata.
+- `consultar_sancoes_fornecedor`: uma base que não respondeu (ex.: "Sistema
+  indisponível" no CNJ) contava como apontamento — a tool afirmava haver sanção.
+  Agora a base fica `nao_verificada`, a consulta é marcada como parcial
+  (`consulta_completa: false`) e o aviso diz quais bases faltaram.
+- `consultar_sancoes_fornecedor`: quando o TCU bloqueia a consulta no firewall
+  ou responde com uma página HTML, a tool falhava com `Expecting value: line 1
+  column 1`. Agora devolve `consulta_realizada: false`, `tem_apontamento: null`,
+  o motivo e o link para a consulta manual, deixando claro que não é "nada
+  consta".
+- Respostas que não são JSON viram um erro claro em todas as fontes, em vez de
+  `JSONDecodeError` cru.
 
 ### Adicionado
 
