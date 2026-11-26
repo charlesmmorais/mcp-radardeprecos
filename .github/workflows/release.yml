@@ -11,19 +11,19 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           python-version: "3.12"
       - name: Conferir versão
         run: |
           versao=$(python -c "import re,pathlib; print(re.search(r'\"(.+)\"', pathlib.Path('src/mcp_radardeprecos/__init__.py').read_text()).group(1))")
           test "v$versao" = "$GITHUB_REF_NAME" || { echo "Tag $GITHUB_REF_NAME difere da versão $versao"; exit 1; }
+      - run: uv sync --locked --extra dev --no-build
       - name: Construir sdist e wheel
         run: |
-          pip install build twine
-          python -m build
-          twine check dist/*
+          uv run --no-sync python -m build --no-isolation
+          uv run --no-sync twine check dist/*
       - name: Extrair notas do CHANGELOG
         run: |
           versao="${GITHUB_REF_NAME#v}"
