@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avaliação de pesquisa de mercado</title>
+<!--
+  Tela MCP Apps da tool avaliar_pesquisa_mercado.
+  Autocontida: nenhum recurso externo. Conversa com o host por postMessage
+  (JSON-RPC 2.0, especificação MCP Apps 2026-01-26). Nada é gravado no
+  servidor: o estudo vive na conversa, e cada edição chama a tool de novo.
+-->
+<style>
+  :root {
+    --fundo: var(--color-background-primary, #ffffff);
+    --fundo-2: var(--color-background-secondary, #f5f6f8);
+    --texto: var(--color-text-primary, #1b1f24);
+    --texto-2: var(--color-text-secondary, #5b6470);
+    --borda: var(--color-border-primary, #d9dde3);
+    --destaque: #1f5fbf;
+    --ok: #1d7a3e;   --ok-fundo: #e3f4e8;
+    --alerta: #9a5b00; --alerta-fundo: #fdf0d8;
+    --erro: #b42318;  --erro-fundo: #fde7e5;
+    --neutro-fundo: #eceff3;
+    --raio: 8px;
+    --fonte: var(--font-sans, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+    color-scheme: light dark;
+  }
+  :root[data-tema="dark"] {
+    --fundo: var(--color-background-primary, #1c1f24);
+    --fundo-2: var(--color-background-secondary, #262a31);
+    --texto: var(--color-text-primary, #e8eaed);
+    --texto-2: var(--color-text-secondary, #a4acb7);
+    --borda: var(--color-border-primary, #3a404a);
+    --destaque: #7fb0ff;
+    --ok: #6fd393;   --ok-fundo: #173323;
+    --alerta: #f0b65a; --alerta-fundo: #3a2c12;
+    --erro: #ff8b80;  --erro-fundo: #3d1a17;
+    --neutro-fundo: #30353d;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fundo); color: var(--texto); font: 14px/1.45 var(--fonte); }
+  main { padding: 16px; max-width: 1100px; margin: 0 auto; }
+  header h1 { font-size: 18px; margin: 0; }
+  header p { margin: 2px 0 0; color: var(--texto-2); font-size: 13px; }
+  section { border: 1px solid var(--borda); border-radius: var(--raio); padding: 12px; margin-top: 12px; background: var(--fundo); }
+  section > h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--texto-2); margin: 0 0 10px; }
+  .grade { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+  label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--texto-2); }
+  label.marca { flex-direction: row; align-items: center; gap: 6px; color: var(--texto); font-size: 13px; }
+  input, select, textarea { font: inherit; color: var(--texto); background: var(--fundo); border: 1px solid var(--borda); border-radius: 6px; padding: 6px 8px; min-width: 0; }
+  input[type="checkbox"] { width: 16px; height: 16px; }
+  input:focus, select:focus, button:focus-visible { outline: 2px solid var(--destaque); outline-offset: 1px; }
+  button { font: inherit; border: 1px solid var(--borda); background: var(--fundo-2); color: var(--texto); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  button.primario { background: var(--destaque); border-color: var(--destaque); color: #fff; }
+  :root[data-tema="dark"] button.primario { color: #10141a; }
+  button:disabled { opacity: .55; cursor: default; }
+  button.icone { padding: 2px 8px; }
+  .layout { display: grid; gap: 12px; grid-template-columns: 260px minmax(0, 1fr); }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } }
+  .lista-itens { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .lista-itens button { width: 100%; text-align: left; background: var(--fundo); display: flex; flex-direction: column; gap: 2px; }
+  .lista-itens button[aria-current="true"] { border-color: var(--destaque); box-shadow: inset 3px 0 0 var(--destaque); }
+  .lista-itens .pilula { align-self: flex-start; }
+  .lista-itens .sub { font-size: 12px; color: var(--texto-2); }
+  .tabela { width: 100%; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 760px; }
+  th, td { border-bottom: 1px solid var(--borda); padding: 5px 4px; text-align: left; vertical-align: top; }
+  th { font-size: 12px; color: var(--texto-2); font-weight: 600; }
+  td input, td select { width: 100%; }
+  td.num input { text-align: right; }
+  td.obs { font-size: 12px; color: var(--texto-2); max-width: 260px; }
+  .pilula { display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .p-ok { background: var(--ok-fundo); color: var(--ok); }
+  .p-alerta { background: var(--alerta-fundo); color: var(--alerta); }
+  .p-erro { background: var(--erro-fundo); color: var(--erro); }
+  .p-neutro { background: var(--neutro-fundo); color: var(--texto-2); }
+  .cartoes { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); margin-top: 12px; }
+  .cartao { background: var(--fundo-2); border-radius: var(--raio); padding: 8px 10px; }
+  .cartao .rotulo { font-size: 11px; color: var(--texto-2); text-transform: uppercase; letter-spacing: .03em; }
+  .cartao .valor { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .cartao.principal { background: var(--destaque); color: #fff; }
+  :root[data-tema="dark"] .cartao.principal { color: #10141a; }
+  .cartao.principal .rotulo { color: inherit; opacity: .85; }
+  .avisos { margin: 8px 0 0; padding-left: 18px; font-size: 12px; color: var(--alerta); }
+  .problemas { margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: var(--erro); }
+  .barra { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; justify-content: space-between; }
+  .acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+  .estado { font-size: 12px; color: var(--texto-2); }
+  .estado.erro { color: var(--erro); }
+  .total { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .vazio { color: var(--texto-2); font-size: 13px; padding: 8px 0; }
+  footer.credito { margin-top: 14px; font-size: 12px; color: var(--texto-2); text-align: center; }
+  .oculto { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Avaliação de pesquisa de mercado</h1>
+    <p>Método do Manual de Pesquisa de Preços</p>
+  </header>
+
+  <section aria-labelledby="t-dados">
+    <h2 id="t-dados">Dados do estudo</h2>
+    <div class="grade">
+      <label>Processo nº <input id="processo" autocomplete="off"></label>
+      <label>Objeto <input id="objeto" autocomplete="off"></label>
+      <label>Responsável <input id="responsavel" autocomplete="off"></label>
+      <label class="marca"><input type="checkbox" id="prorrogacao"> Prorrogação contratual</label>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-opcoes">
+    <h2 id="t-opcoes">Opções</h2>
+    <div class="grade">
+      <label>Método
+        <select id="metodo"><option value="media_dos_demais">Média dos demais preços</option></select>
+      </label>
+      <label>Excessivamente elevado acima de (%) <input id="pct-excessivo" type="number" min="0" step="1"></label>
+      <label>Inexequível abaixo de (%) <input id="pct-inexequivel" type="number" min="1" max="100" step="1"></label>
+      <label>Coeficiente de variação máximo (%) <input id="pct-cv" type="number" min="1" step="1"></label>
+    </div>
+    <div class="grade" style="margin-top:10px">
+      <label class="marca"><input type="checkbox" id="usar-minimo"> Usar o preço mínimo</label>
+      <label class="marca"><input type="checkbox" id="preservar"> Preservar preços públicos inexequíveis</label>
+      <label class="marca"><input type="checkbox" id="exigir-tres"> Exigir 3 preços válidos</label>
+    </div>
+  </section>
+
+  <div class="layout">
+    <section aria-labelledby="t-itens">
+      <h2 id="t-itens">Itens</h2>
+      <ul class="lista-itens" id="lista-itens"></ul>
+      <button id="adicionar-item" type="button">+ Adicionar item</button>
+    </section>
+
+    <section aria-labelledby="t-item" id="painel-item">
+      <h2 id="t-item">Item</h2>
+      <div id="sem-item" class="vazio">Adicione um item para começar.</div>
+      <div id="detalhe" class="oculto">
+        <div class="grade">
+          <label style="grid-column: span 2">Descrição <input id="item-descricao" autocomplete="off"></label>
+          <label>Métrica <input id="item-metrica" placeholder="unidade, mês, hora…" autocomplete="off"></label>
+          <label>Quantidade <input id="item-quantidade" type="number" min="0" step="any"></label>
+          <label id="campo-contratado" class="oculto">Preço contratado (R$) <input id="item-contratado" inputmode="decimal" autocomplete="off"></label>
+        </div>
+
+        <div class="barra" style="margin-top:12px">
+          <strong>Preços</strong>
+          <div class="acoes">
+            <button id="buscar-pncp" type="button">Buscar no PNCP</button>
+            <button id="adicionar-preco" type="button">+ Adicionar preço</button>
+            <button id="remover-item" type="button">Remover item</button>
+          </div>
+        </div>
+        <div class="tabela">
+          <table>
+            <thead><tr>
+              <th style="width:19%">Fonte</th><th style="width:19%">Tipo</th><th style="width:12%">Localizador</th>
+              <th style="width:12%">Valor (R$)</th><th>Avaliação</th><th>Observação</th><th aria-label="Remover"></th>
+            </tr></thead>
+            <tbody id="precos"></tbody>
+          </table>
+        </div>
+        <div id="cartoes" class="cartoes"></div>
+        <ul id="problemas" class="problemas"></ul>
+        <p id="prorrogacao-msg" class="oculto"></p>
+      </div>
+    </section>
+  </div>
+
+  <section aria-label="Resumo do estudo">
+    <div class="barra">
+      <div>
+        <div class="estado">Valor total estimado</div>
+        <div class="total" id="valor-total">—</div>
+        <div class="estado" id="prontos"></div>
+      </div>
+      <div class="acoes">
+        <span class="estado" id="estado" role="status" aria-live="polite"></span>
+        <button id="exportar" type="button" class="primario">Exportar Excel</button>
+      </div>
+    </div>
+    <ul id="avisos" class="avisos"></ul>
+  </section>
+
+  <footer class="credito">Baseado na planilha de Avaliação de pesquisa de mercado do STJ</footer>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  var TOOL = "avaliar_pesquisa_mercado";
+  var TIPOS = ["PNCP", "ATA", "CONTRATO", "PAINEL DE PREÇOS", "FORNECEDOR",
+               "PESQUISA NA INTERNET", "MÍDIA ESPECIALIZADA", "OUTROS"];
+  var PADRAO = { percentual_excessivo: 0.25, percentual_inexequivel: 0.75, cv_maximo: 0.25,
+                 usar_preco_minimo: false, preservar_publicos_inexequiveis: true, minimo_precos_validos: 3 };
+  var MOEDA = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+  var NUM = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
+
+  // ---- Estado -----------------------------------------------------------------
+  var estudo = { processo: "", objeto: "", responsavel: "", prorrogacao: false,
+                 opcoes: Object.assign({}, PADRAO), itens: [], versao: 0 };
+  var avaliado = null;        // última resposta da tool
+  var selecionado = 0;
+  var hostCaps = {};
+  var temporizador = null;
+  var chamadaAtual = 0;
+
+  function $(id) { return document.getElementById(id); }
+
+  // ---- Ponte JSON-RPC com o host ------------------------------------------------
+  var proximoId = 1;
+  var pendentes = {};
+
+  function enviar(msg) { window.parent.postMessage(msg, "*"); }
+
+  function pedir(metodo, params) {
+    var id = proximoId++;
+    enviar({ jsonrpc: "2.0", id: id, method: metodo, params: params || {} });
+    return new Promise(function (resolve, reject) { pendentes[id] = { resolve: resolve, reject: reject }; });
+  }
+
+  function notificar(metodo, params) {
+    enviar({ jsonrpc: "2.0", method: metodo, params: params || {} });
+  }
+
+  window.addEventListener("message", function (e) {
+    if (e.source !== window.parent) return;
+    var m = e.data;
+    if (!m || m.jsonrpc !== "2.0") return;
+    if (m.id !== undefined && !m.method) {          // resposta a um pedido nosso
+      var p = pendentes[m.id];
+      if (!p) return;
+      delete pendentes[m.id];
+      if (m.error) p.reject(new Error(m.error.message || "erro do host"));
+      else p.resolve(m.result);
+      return;
+    }
+    tratarDoHost(m);
+  });
+
+  function tratarDoHost(m) {
+    var params = m.params || {};
+    switch (m.method) {
+      case "ui/notifications/tool-input":
+        if (params.arguments) carregarEntrada(params.arguments);
+        break;
+      case "ui/notifications/tool-input-partial":
+        break;
+      case "ui/notifications/tool-result":
+        receberResultado(params);
+        break;
+      case "ui/notifications/tool-cancelled":
+        mostrarEstado("Avaliação cancelada.", true);
+        break;
+      case "ui/notifications/host-context-changed":
+        aplicarContexto(params);
+        break;
+      case "ui/resource-teardown":
+        if (m.id !== undefined) enviar({ jsonrpc: "2.0", id: m.id, result: {} });
+        break;
+      default:
+        if (m.id !== undefined) enviar({ jsonrpc: "2.0", id: m.id, error: { code: -32601, message: "método não suportado" } });
+    }
+  }
+
+  function aplicarContexto(ctx) {
+    if (!ctx) return;
+    if (ctx.theme) document.documentElement.setAttribute("data-tema", ctx.theme === "dark" ? "dark" : "light");
+    var vars = ctx.styles && ctx.styles.variables;
+    if (vars) {
+      Object.keys(vars).forEach(function (k) {
+        if (k.indexOf("--") === 0 && typeof vars[k] === "string") document.documentElement.style.setProperty(k, vars[k]);
+      });
+    }
+  }
+
+  // ---- Entrada e resultado ------------------------------------------------------
+  function texto(v) { return v === null || v === undefined ? "" : String(v); }
+
+  function normalizarPreco(p) {
+    return { fonte: texto(p.fonte), tipo: texto(p.tipo).toUpperCase() === "COMPRASNET" ? "PNCP" : texto(p.tipo),
+             localizador: texto(p.localizador), valor: p.valor === null || p.valor === undefined ? "" : String(p.valor) };
+  }
+
+  function normalizarItem(i) {
+    return { descricao: texto(i.descricao), metrica: texto(i.metrica),
+             quantidade: i.quantidade === null || i.quantidade === undefined ? "" : String(i.quantidade),
+             preco_contratado: i.preco_contratado === null || i.preco_contratado === undefined
+               ? (i.prorrogacao && i.prorrogacao.preco_contratado != null ? String(i.prorrogacao.preco_contratado) : "")
+               : String(i.preco_contratado),
+             precos: (i.precos || []).map(normalizarPreco) };
+  }
+
+  function carregarEntrada(a) {
+    estudo.processo = texto(a.processo);
+    estudo.objeto = texto(a.objeto);
+    estudo.responsavel = texto(a.responsavel);
+    estudo.prorrogacao = !!a.prorrogacao;
+    Object.keys(PADRAO).forEach(function (k) { if (a[k] !== undefined && a[k] !== null) estudo.opcoes[k] = a[k]; });
+    estudo.itens = (a.itens || []).map(normalizarItem);
+    if (typeof a.versao === "number") estudo.versao = a.versao;
+    renderizarTudo();
+  }
+
+  function extrairEstruturado(res) {
+    if (!res) return null;
+    var s = res.structuredContent;
+    if (s && typeof s === "object") {
+      if (s.result && typeof s.result === "object" && s.result.itens) return s.result;
+      if (s.itens) return s;
+    }
+    var c = (res.content || []).filter(function (x) { return x && x.type === "text"; });
+    for (var i = 0; i < c.length; i++) {
+      try { var j = JSON.parse(c[i].text); if (j && j.itens) return j; } catch (err) { /* texto comum */ }
+    }
+    return null;
+  }
+
+  function mensagemDeErro(res) {
+    var c = (res && res.content || []).filter(function (x) { return x && x.type === "text"; });
+    return c.length ? c[0].text : "a avaliação falhou";
+  }
+
+  function receberResultado(res) {
+    if (res && res.isError) { mostrarEstado(mensagemDeErro(res), true); return; }
+    var r = extrairEstruturado(res);
+    if (!r) return;
+    avaliado = r;
+    estudo.versao = r.versao || estudo.versao;
+    if (r.processo !== undefined) estudo.processo = texto(r.processo);
+    if (r.objeto !== undefined) estudo.objeto = texto(r.objeto);
+    if (r.responsavel !== undefined) estudo.responsavel = texto(r.responsavel);
+    estudo.prorrogacao = !!r.prorrogacao;
+    if (r.opcoes) Object.keys(PADRAO).forEach(function (k) { if (r.opcoes[k] !== undefined) estudo.opcoes[k] = r.opcoes[k]; });
+    estudo.itens = mesclarItens(estudo.itens, r.itens || []);
+    mostrarEstado("Versão " + estudo.versao + " avaliada.");
+    renderizarTudo();
+    atualizarContextoDoModelo();
+  }
+
+  // Mantém na tela as linhas que ainda não foram à tool (valor vazio ou inválido).
+  function mesclarItens(locais, vindos) {
+    return vindos.map(function (v, idx) {
+      var novo = normalizarItem(v);
+      var local = locais[idx];
+      if (local) {
+        local.precos.forEach(function (p) { if (!valorValido(p.valor)) novo.precos.push(p); });
+      }
+      return novo;
+    });
+  }
+
+  // ---- Números ------------------------------------------------------------------
+  function paraNumero(v) {
+    if (typeof v === "number") return v;
+    var s = texto(v).replace(/R\$|\s/g, "");
+    if (!s) return NaN;
+    if (s.indexOf(",") >= 0) s = s.replace(/\./g, "").replace(",", ".");
+    return Number(s);
+  }
+  function valorValido(v) { var n = paraNumero(v); return isFinite(n) && n > 0; }
+  function moeda(v) { return v === null || v === undefined ? "—" : MOEDA.format(v); }
+
+  // ---- Chamada à tool -----------------------------------------------------------
+  function montarArgumentos() {
+    var o = estudo.opcoes;
+    return {
+      processo: estudo.processo || null,
+      objeto: estudo.objeto || null,
+      responsavel: estudo.responsavel || null,
+      prorrogacao: estudo.prorrogacao,
+      percentual_excessivo: o.percentual_excessivo,
+      percentual_inexequivel: o.percentual_inexequivel,
+      cv_maximo: o.cv_maximo,
+      usar_preco_minimo: o.usar_preco_minimo,
+      preservar_publicos_inexequiveis: o.preservar_publicos_inexequiveis,
+      minimo_precos_validos: o.minimo_precos_validos,
+      versao: estudo.versao,
+      itens: estudo.itens.map(function (i) {
+        var item = { descricao: i.descricao, metrica: i.metrica,
+                     quantidade: valorValido(i.quantidade) ? paraNumero(i.quantidade) : null,
+                     precos: i.precos.filter(function (p) { return valorValido(p.valor); }).map(function (p) {
+                       return { fonte: p.fonte, tipo: p.tipo, localizador: p.localizador, valor: paraNumero(p.valor) };
+                     }) };
+        if (estudo.prorrogacao && valorValido(i.preco_contratado)) item.preco_contratado = paraNumero(i.preco_contratado);
+        return item;
+      })
+    };
+  }
+
+  function agendarAvaliacao() {
+    clearTimeout(temporizador);
+    mostrarEstado("Alterações não avaliadas…");
+    temporizador = setTimeout(avaliar, 700);
+  }
+
+  function avaliar() {
+    if (!estudo.itens.length) { avaliado = null; renderizarTudo(); return; }
+    var minha = ++chamadaAtual;
+    mostrarEstado("Avaliando…");
+    pedir("tools/call", { name: TOOL, arguments: montarArgumentos() }).then(function (res) {
+      if (minha !== chamadaAtual) return;            // uma edição mais nova já saiu
+      receberResultado(res);
+    }).catch(function (err) {
+      if (minha === chamadaAtual) mostrarEstado("Falha ao avaliar: " + err.message, true);
+    });
+  }
+
+  function atualizarContextoDoModelo() {
+    if (!avaliado) return;
+    var r = avaliado;
+    var linhas = ["Estudo de avaliação de pesquisa de mercado, versão " + r.versao +
+                  (r.processo ? ", processo " + r.processo : "") + ".",
+                  "Itens prontos: " + r.resumo.itens_prontos + " de " + r.resumo.total_itens +
+                  "; valor total estimado: " + moeda(r.resumo.valor_total_estimado) + "."];
+    r.itens.forEach(function (i, n) {
+      linhas.push((n + 1) + ". " + i.descricao + " (" + i.metrica + ", qtd " + i.quantidade + "): " +
+                  (i.resultado.preco_mercado != null ? moeda(i.resultado.preco_mercado) + " por " + i.resultado.metodo_aplicado : i.status));
+    });
+    pedir("ui/update-model-context", {
+      content: [{ type: "text", text: linhas.join("\n") }],
+      structuredContent: { estudo: montarArgumentos() }
+    }).catch(function () { /* host sem suporte: a conversa já tem o resultado da tool */ });
+  }
+
+  // ---- Renderização -------------------------------------------------------------
+  function el(tag, attrs, filhos) {
+    var n = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === "texto") n.textContent = attrs[k];
+      else if (k === "classe") n.className = attrs[k];
+      else n.setAttribute(k, attrs[k]);
+    });
+    (filhos || []).forEach(function (f) { if (f) n.appendChild(f); });
+    return n;
+  }
+
+  function classePilula(av) {
+    if (!av) return "p-neutro";
+    if (av.indexOf("VÁLIDO") === 0) return av === "VÁLIDO" ? "p-ok" : "p-alerta";
+    if (av === "INCOMPLETO") return "p-neutro";
+    return "p-erro";
+  }
+
+  function itemAvaliado(idx) { return avaliado && avaliado.itens ? avaliado.itens[idx] : null; }
+
+  // Só troca o valor quando mudou: assim o cursor de quem está digitando não pula.
+  function definir(id, valor) {
+    var n = $(id), v = texto(valor);
+    if (n.value !== v) n.value = v;
+  }
+  function pct(f) { return String(Math.round(f * 10000) / 100); }
+
+  // A tabela de preços é refeita a cada avaliação; guarda e devolve o foco.
+  function guardarFoco() {
+    var a = document.activeElement, tr = a && a.closest ? a.closest("#precos tr") : null;
+    if (!tr) return null;
+    return { linha: Array.prototype.indexOf.call(tr.parentNode.children, tr), rotulo: a.getAttribute("aria-label"),
+             inicio: a.selectionStart, fim: a.selectionEnd };
+  }
+  function devolverFoco(f) {
+    if (!f) return;
+    var tr = $("precos").children[f.linha];
+    var n = tr && tr.querySelector('[aria-label="' + f.rotulo + '"]');
+    if (!n) return;
+    n.focus();
+    try { if (f.inicio != null) n.setSelectionRange(f.inicio, f.fim); } catch (err) { /* select não tem cursor */ }
+  }
+
+  function renderizarTudo() {
+    definir("processo", estudo.processo);
+    definir("objeto", estudo.objeto);
+    definir("responsavel", estudo.responsavel);
+    $("prorrogacao").checked = estudo.prorrogacao;
+    definir("pct-excessivo", pct(estudo.opcoes.percentual_excessivo));
+    definir("pct-inexequivel", pct(estudo.opcoes.percentual_inexequivel));
+    definir("pct-cv", pct(estudo.opcoes.cv_maximo));
+    $("usar-minimo").checked = !!estudo.opcoes.usar_preco_minimo;
+    $("preservar").checked = !!estudo.opcoes.preservar_publicos_inexequiveis;
+    $("exigir-tres").checked = estudo.opcoes.minimo_precos_validos >= 3;
+    if (selecionado >= estudo.itens.length) selecionado = Math.max(0, estudo.itens.length - 1);
+    renderizarLista();
+    renderizarItem();
+    renderizarResumo();
+  }
+
+  function renderizarLista() {
+    var ul = $("lista-itens");
+    ul.replaceChildren();
+    estudo.itens.forEach(function (i, idx) {
+      var av = itemAvaliado(idx);
+      var status = av ? av.status : "não avaliado";
+      var rotulos = { pronto: "pronto", poucos_precos: "poucos preços", sem_precos: "sem preços" };
+      var pil = el("span", { classe: "pilula " + (status === "pronto" ? "p-ok" : status === "não avaliado" ? "p-neutro" : "p-alerta"),
+                             texto: rotulos[status] || status });
+      var b = el("button", { type: "button", "aria-current": idx === selecionado ? "true" : "false" }, [
+        el("span", { texto: (idx + 1) + ". " + (i.descricao || "Item sem descrição") }),
+        el("span", { classe: "sub", texto: (i.metrica || "sem métrica") + " · qtd " + (i.quantidade || "—") }),
+        pil
+      ]);
+      b.addEventListener("click", function () { selecionado = idx; renderizarLista(); renderizarItem(); });
+      ul.appendChild(el("li", null, [b]));
+    });
+  }
+
+  function renderizarItem() {
+    var item = estudo.itens[selecionado];
+    $("sem-item").classList.toggle("oculto", !!item);
+    $("detalhe").classList.toggle("oculto", !item);
+    if (!item) return;
+    var av = itemAvaliado(selecionado);
+    definir("item-descricao", item.descricao);
+    definir("item-metrica", item.metrica);
+    definir("item-quantidade", item.quantidade);
+    $("campo-contratado").classList.toggle("oculto", !estudo.prorrogacao);
+    definir("item-contratado", item.preco_contratado);
+    var foco = guardarFoco();
+
+    var tbody = $("precos");
+    tbody.replaceChildren();
+    // Os preços avaliados vêm na mesma ordem dos enviados (só os de valor válido).
+    var avaliados = av ? av.precos : [];
+    var k = 0;
+    item.precos.forEach(function (p, idx) {
+      var pa = valorValido(p.valor) ? avaliados[k++] : null;
+      tbody.appendChild(linhaPreco(item, p, idx, pa));
+    });
+    if (!item.precos.length) {
+      tbody.appendChild(el("tr", null, [el("td", { colspan: "7", classe: "vazio", texto: "Nenhum preço. Adicione um preço ou busque no PNCP." })]));
+    }
+    devolverFoco(foco);
+    renderizarResultadoItem(av);
+  }
+
+  function campo(valor, aoMudar, extra) {
+    var i = el("input", Object.assign({ autocomplete: "off" }, extra || {}));
+    i.value = valor;
+    i.addEventListener("input", function () { aoMudar(i.value); });
+    return i;
+  }
+
+  function linhaPreco(item, p, idx, pa) {
+    var sel = el("select", { "aria-label": "Tipo de fonte" }, [el("option", { value: "", texto: "—" })]
+      .concat(TIPOS.map(function (t) { return el("option", { value: t, texto: t }); })));
+    if (p.tipo && TIPOS.indexOf(p.tipo) < 0) sel.appendChild(el("option", { value: p.tipo, texto: p.tipo }));
+    sel.value = p.tipo;
+    sel.addEventListener("change", function () { p.tipo = sel.value; agendarAvaliacao(); });
+
+    var avaliacao = pa ? pa.avaliacao : (texto(p.valor) ? "valor inválido" : "sem valor");
+    var obs = pa ? (pa.observacao || "") : "";
+    if (pa && pa.usado_no_calculo === false && pa.avaliacao && pa.avaliacao.indexOf("VÁLIDO") === 0) {
+      obs = (obs ? obs + " " : "") + "Fora do cálculo.";
+    }
+    var remover = el("button", { type: "button", classe: "icone", "aria-label": "Remover preço", title: "Remover preço", texto: "×" });
+    remover.addEventListener("click", function () { item.precos.splice(idx, 1); renderizarItem(); agendarAvaliacao(); });
+
+    var valor = campo(p.valor, function (v) { p.valor = v; agendarAvaliacao(); }, { inputmode: "decimal", "aria-label": "Valor" });
+    return el("tr", null, [
+      el("td", null, [campo(p.fonte, function (v) { p.fonte = v; agendarAvaliacao(); }, { "aria-label": "Fonte" })]),
+      el("td", null, [sel]),
+      el("td", null, [campo(p.localizador, function (v) { p.localizador = v; agendarAvaliacao(); }, { "aria-label": "Localizador" })]),
+      el("td", { classe: "num" }, [valor]),
+      el("td", null, [el("span", { classe: "pilula " + classePilula(pa && pa.avaliacao), texto: avaliacao })]),
+      el("td", { classe: "obs", texto: obs }),
+      el("td", null, [remover])
+    ]);
+  }
+
+  function cartao(rotulo, valor, principal) {
+    return el("div", { classe: "cartao" + (principal ? " principal" : "") }, [
+      el("div", { classe: "rotulo", texto: rotulo }), el("div", { classe: "valor", texto: valor })
+    ]);
+  }
+
+  function renderizarResultadoItem(av) {
+    var c = $("cartoes"), pr = $("problemas"), msg = $("prorrogacao-msg");
+    c.replaceChildren(); pr.replaceChildren();
+    msg.classList.add("oculto");
+    if (!av) return;
+    var r = av.resultado;
+    c.appendChild(cartao("Preço de mercado", moeda(r.preco_mercado), true));
+    c.appendChild(cartao("Método", r.metodo_aplicado || "—"));
+    c.appendChild(cartao("Média", moeda(r.media)));
+    c.appendChild(cartao("Mediana", moeda(r.mediana)));
+    c.appendChild(cartao("Preço mínimo", moeda(r.preco_minimo)));
+    c.appendChild(cartao("Coef. de variação", r.coeficiente_variacao_percentual == null ? "—" : NUM.format(r.coeficiente_variacao_percentual) + "%"));
+    c.appendChild(cartao("Preços válidos", String(r.precos_validos)));
+    c.appendChild(cartao("Valor total", moeda(r.valor_total)));
+    (av.problemas || []).forEach(function (t) { pr.appendChild(el("li", { texto: t })); });
+    if (av.prorrogacao && av.prorrogacao.mensagem) {
+      msg.textContent = av.prorrogacao.mensagem;
+      msg.className = "pilula " + (av.prorrogacao.desvantajoso ? "p-erro" : "p-ok");
+    }
+  }
+
+  function renderizarResumo() {
+    var r = avaliado;
+    $("valor-total").textContent = r ? moeda(r.resumo.valor_total_estimado) : "—";
+    $("prontos").textContent = r ? r.resumo.itens_prontos + " de " + r.resumo.total_itens + " itens prontos · versão " + r.versao : "";
+    var ul = $("avisos");
+    ul.replaceChildren();
+    (r ? r.avisos : []).forEach(function (t) { ul.appendChild(el("li", { texto: t })); });
+    $("exportar").disabled = !r;
+  }
+
+  function mostrarEstado(t, erro) {
+    var e = $("estado");
+    e.textContent = t;
+    e.classList.toggle("erro", !!erro);
+  }
+
+  // ---- Eventos dos campos -------------------------------------------------------
+  function ligarTexto(id, aoMudar) {
+    $(id).addEventListener("input", function (ev) { aoMudar(ev.target.value); agendarAvaliacao(); });
+  }
+  function ligarMarca(id, aoMudar) {
+    $(id).addEventListener("change", function (ev) { aoMudar(ev.target.checked); renderizarItem(); agendarAvaliacao(); });
+  }
+  function ligarPercentual(id, chave) {
+    $(id).addEventListener("input", function (ev) {
+      var n = Number(ev.target.value);
+      if (!isFinite(n) || n <= 0 || ev.target.value === "") return;
+      estudo.opcoes[chave] = n / 100;
+      agendarAvaliacao();
+    });
+  }
+
+  ligarTexto("processo", function (v) { estudo.processo = v; });
+  ligarTexto("objeto", function (v) { estudo.objeto = v; });
+  ligarTexto("responsavel", function (v) { estudo.responsavel = v; });
+  ligarMarca("prorrogacao", function (v) { estudo.prorrogacao = v; });
+  ligarMarca("usar-minimo", function (v) { estudo.opcoes.usar_preco_minimo = v; });
+  ligarMarca("preservar", function (v) { estudo.opcoes.preservar_publicos_inexequiveis = v; });
+  ligarMarca("exigir-tres", function (v) { estudo.opcoes.minimo_precos_validos = v ? 3 : 1; });
+  ligarPercentual("pct-excessivo", "percentual_excessivo");
+  ligarPercentual("pct-inexequivel", "percentual_inexequivel");
+  ligarPercentual("pct-cv", "cv_maximo");
+
+  function noItem(id, chave) {
+    $(id).addEventListener("input", function (ev) {
+      var item = estudo.itens[selecionado];
+      if (!item) return;
+      item[chave] = ev.target.value;
+      renderizarLista();
+      agendarAvaliacao();
+    });
+  }
+  noItem("item-descricao", "descricao");
+  noItem("item-metrica", "metrica");
+  noItem("item-quantidade", "quantidade");
+  noItem("item-contratado", "preco_contratado");
+
+  $("adicionar-item").addEventListener("click", function () {
+    estudo.itens.push({ descricao: "", metrica: "unidade", quantidade: "1", preco_contratado: "", precos: [] });
+    selecionado = estudo.itens.length - 1;
+    renderizarTudo();
+    $("item-descricao").focus();
+  });
+
+  $("remover-item").addEventListener("click", function () {
+    estudo.itens.splice(selecionado, 1);
+    if (avaliado && avaliado.itens) avaliado.itens.splice(selecionado, 1);
+    selecionado = Math.max(0, selecionado - 1);
+    renderizarTudo();
+    agendarAvaliacao();
+  });
+
+  $("adicionar-preco").addEventListener("click", function () {
+    var item = estudo.itens[selecionado];
+    if (!item) return;
+    item.precos.push({ fonte: "", tipo: "FORNECEDOR", localizador: "", valor: "" });
+    renderizarItem();
+    var linhas = $("precos").querySelectorAll("tr");
+    var ultima = linhas[linhas.length - 1];
+    if (ultima) ultima.querySelector("input").focus();
+  });
+
+  $("buscar-pncp").addEventListener("click", function () {
+    var item = estudo.itens[selecionado];
+    if (!item) return;
+    var texto = "Busque no PNCP preços para o item " + (selecionado + 1) + " do estudo de avaliação de pesquisa de mercado (versão " +
+      estudo.versao + "): \"" + (item.descricao || "item sem descrição") + "\", métrica \"" + (item.metrica || "unidade") +
+      "\". Depois, acrescente os preços encontrados a esse item, com fonte, tipo e localizador, e chame avaliar_pesquisa_mercado " +
+      "com o estudo completo para atualizar a tela.";
+    pedir("ui/message", { role: "user", content: [{ type: "text", text: texto }] })
+      .then(function () { mostrarEstado("Pedido de busca enviado à conversa."); })
+      .catch(function (err) { mostrarEstado("Não foi possível enviar o pedido: " + err.message, true); });
+  });
+
+  // ---- Exportar Excel -----------------------------------------------------------
+  function registrosParaExportar() {
+    var regs = [];
+    (avaliado ? avaliado.itens : []).forEach(function (i, n) {
+      i.precos.forEach(function (p) {
+        regs.push({ item: n + 1, descricao: i.descricao, metrica: i.metrica, quantidade: i.quantidade,
+                    fonte: p.fonte, tipo: p.tipo, localizador: p.localizador, valor: p.valor,
+                    avaliacao: p.avaliacao, usado_no_calculo: p.usado_no_calculo ? "sim" : "não",
+                    observacao: p.observacao, preco_mercado: i.resultado.preco_mercado,
+                    metodo: i.resultado.metodo_aplicado, valor_total_item: i.resultado.valor_total });
+      });
+    });
+    return regs;
+  }
+
+  $("exportar").addEventListener("click", function () {
+    var regs = registrosParaExportar();
+    if (!regs.length) { mostrarEstado("Nada para exportar.", true); return; }
+    mostrarEstado("Gerando a planilha…");
+    pedir("tools/call", { name: "exportar_resultados", arguments: { registros: regs, formato: "xlsx" } }).then(function (res) {
+      if (res && res.isError) throw new Error(mensagemDeErro(res));
+      var s = res.structuredContent && (res.structuredContent.result || res.structuredContent);
+      if (!s || !s.conteudo_base64) {
+        var c = (res.content || []).filter(function (x) { return x.type === "text"; });
+        try { s = JSON.parse(c[0].text); } catch (err) { s = null; }
+      }
+      if (!s || !s.conteudo_base64) throw new Error("a planilha não veio na resposta");
+      return baixar(s);
+    }).catch(function (err) { mostrarEstado("Falha ao exportar: " + err.message, true); });
+  });
+
+  function nomeDoArquivo() {
+    var base = "avaliacao_pesquisa_mercado" + (estudo.processo ? "_" + estudo.processo.replace(/[^\w.-]+/g, "_") : "");
+    return base + "_v" + estudo.versao + ".xlsx";
+  }
+
+  function baixar(s) {
+    var nome = nomeDoArquivo();
+    var mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    if (hostCaps.downloadFile) {
+      return pedir("ui/download-file", { contents: [{ type: "resource",
+        resource: { uri: "file:///" + nome, mimeType: mime, blob: s.conteudo_base64 } }] })
+        .then(function () { mostrarEstado("Planilha entregue: " + nome); });
+    }
+    // Sem download pelo host: tenta pelo navegador (pode ser bloqueado pelo sandbox).
+    var bin = atob(s.conteudo_base64), bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    var a = el("a", { href: URL.createObjectURL(new Blob([bytes], { type: mime })), download: nome });
+    document.body.appendChild(a); a.click(); a.remove();
+    mostrarEstado("Planilha gerada: " + nome + ". Se o download não começar, peça a planilha na conversa.");
+    return null;
+  }
+
+  // ---- Tamanho e início ---------------------------------------------------------
+  var ultimaAltura = 0;
+  new ResizeObserver(function () {
+    var h = Math.ceil(document.documentElement.scrollHeight);
+    if (h === ultimaAltura) return;
+    ultimaAltura = h;
+    notificar("ui/notifications/size-changed", { width: Math.ceil(document.documentElement.scrollWidth), height: h });
+  }).observe(document.body);
+
+  renderizarTudo();
+  pedir("ui/initialize", {
+    protocolVersion: "2026-01-26",
+    appInfo: { name: "avaliacao-pesquisa-mercado", version: "1.0.0" },
+    appCapabilities: {}
+  }).then(function (r) {
+    hostCaps = (r && r.hostCapabilities) || {};
+    aplicarContexto(r && r.hostContext);
+    notificar("ui/notifications/initialized");
+    renderizarTudo();
+  }).catch(function (err) { mostrarEstado("Sem conexão com o host: " + err.message, true); });
+})();
+</script>
+</body>
+</html>

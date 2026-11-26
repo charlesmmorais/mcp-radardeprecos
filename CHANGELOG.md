@@ -18,6 +18,13 @@ e o projeto adota o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   o estudo vive na conversa, com número de versão. Baseada na planilha de
   Avaliação de pesquisa de mercado do STJ, cujos resultados servem de gabarito
   nos testes.
+- Tela interativa (MCP Apps) de `avaliar_pesquisa_mercado`, no resource
+  `ui://mcp-radardeprecos/avaliacao-pesquisa-mercado.html`: dados do estudo,
+  opções, itens com métrica e quantidade, e a tabela de preços com a avaliação
+  de cada um. Preços podem ser digitados (propostas de fornecedores) ou
+  buscados no PNCP pela conversa. Cada edição reavalia o estudo pela tool;
+  exporta em Excel. Autocontida, sem recurso externo, e sem guardar nada no
+  servidor. Clientes sem MCP Apps continuam recebendo o resultado em JSON.
 
 ### Segurança
 

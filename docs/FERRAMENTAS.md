@@ -234,6 +234,12 @@ nada: recebe o estudo inteiro e devolve a versão seguinte, para o estudo viver
 na conversa. Baseado na planilha de Avaliação de pesquisa de mercado do STJ.
 *Sem consulta externa.*
 
+Em clientes com suporte a MCP Apps (como o Microsoft 365 Copilot e o Claude),
+a tool abre uma tela interativa: dados do estudo, opções, lista de itens e a
+tabela de preços de cada item, com a avaliação de cada preço e o resultado.
+Cada edição chama a tool de novo; a tela também pede à conversa a busca de
+preços no PNCP e exporta o estudo em Excel. Nada é gravado no servidor.
+
 **`calcular_preco_referencia`** — calcula o preço de referência a partir da
 cesta. *Como:* o padrão é o **escore Z iterativo**, governado pelo coeficiente
 de variação: com CV inicial de até 25% nada é removido (série homogênea não tem

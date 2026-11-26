@@ -211,6 +211,22 @@ def _anotacoes(nome: str) -> ToolAnnotations:
     )
 
 
+#: Telas interativas (extensão MCP Apps): tool -> recurso ``ui://`` da tela.
+#: Clientes sem MCP Apps ignoram os metadados e recebem só o resultado em texto.
+TELA_AVALIACAO_URI = "ui://mcp-radardeprecos/avaliacao-pesquisa-mercado.html"
+MIME_TELA = "text/html;profile=mcp-app"
+_TELAS: dict[str, str] = {"avaliar_pesquisa_mercado": TELA_AVALIACAO_URI}
+
+
+def _meta_tela(nome: str) -> dict[str, Any] | None:
+    uri = _TELAS.get(nome)
+    if uri is None:
+        return None
+    # "ui/resourceUri" é a forma antiga da especificação, mantida pelos
+    # clientes que ainda não leem _meta.ui (o exemplo oficial em Python faz igual).
+    return {"ui": {"resourceUri": uri}, "ui/resourceUri": uri}
+
+
 def _registrar_tool(func: Callable[..., Awaitable[object]]) -> None:
     """Registra ``func`` como tool MCP.
 
@@ -251,7 +267,7 @@ def _registrar_tool(func: Callable[..., Awaitable[object]]) -> None:
             observability.registrar_cliente(observability.cliente_atual(), nova_sessao)
             observability.registrar_protocolo(observability.protocolo_atual())
 
-    mcp.tool(name=func.__name__, annotations=_anotacoes(func.__name__))(wrapper)
+    mcp.tool(name=func.__name__, annotations=_anotacoes(func.__name__), meta=_meta_tela(func.__name__))(wrapper)
 
 
 for _tool in _TOOLS:
@@ -278,6 +294,20 @@ def conduzir_pesquisa_precos(*args, **kwargs):
 )
 def boas_praticas_pesquisa_precos() -> str:
     return renderizar_markdown()
+
+
+@mcp.resource(
+    TELA_AVALIACAO_URI,
+    name="Tela da avaliação de pesquisa de mercado",
+    description=(
+        "Tela interativa (MCP Apps) da tool avaliar_pesquisa_mercado: dados do "
+        "estudo, opções, itens com métrica e a tabela de preços avaliados."
+    ),
+    mime_type=MIME_TELA,
+    meta={"ui": {"prefersBorder": True}},
+)
+def tela_avaliacao_pesquisa_mercado() -> str:
+    return (resources.files("mcp_radardeprecos") / "ui" / "avaliacao_pesquisa_mercado.html").read_text(encoding="utf-8")
 
 
 @mcp.custom_route("/", methods=["POST", "PUT", "DELETE", "PATCH"])
