@@ -1,0 +1,46 @@
+# Vulnerabilidades conhecidas nas dependências travadas no uv.lock. A rodada
+# semanal pega avisos publicados depois que o código entrou, mesmo sem mudança
+# no repositório.
+name: Auditoria de dependências
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 10 * * 1" # segundas, 07:00 em Brasília
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auditoria-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pip-audit:
+    name: pip-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --locked --extra dev --no-build
+      - name: Exportar o lock com hashes
+        run: |
+          uv export --format requirements.txt --locked --no-dev --extra metrics --no-emit-project -o producao.txt
+          uv export --format requirements.txt --locked --extra dev --no-emit-project -o desenvolvimento.txt
+      - name: Dependências de produção
+        run: uv run --no-sync pip-audit -r producao.txt --require-hashes --disable-pip --progress-spinner off
+      - name: Dependências de desenvolvimento
+        run: uv run --no-sync pip-audit -r desenvolvimento.txt --require-hashes --disable-pip --progress-spinner off
+      - name: SBOM (CycloneDX)
+        run: uv export --format cyclonedx1.5 --locked --no-dev --extra metrics --no-hashes -o sbom.cdx.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
+          retention-days: 30

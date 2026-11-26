@@ -24,6 +24,12 @@ jobs:
         run: |
           uv run --no-sync python -m build --no-isolation
           uv run --no-sync twine check dist/*
+      - name: SBOM (CycloneDX)
+        run: |
+          versao="${GITHUB_REF_NAME#v}"
+          uv export --format cyclonedx1.5 --locked --no-dev --extra metrics --no-hashes -o sbom.json
+          # A versão do projeto é dinâmica no pyproject.toml e sai vazia no SBOM.
+          uv run --no-sync python -c "import json,sys; d=json.load(open('sbom.json',encoding='utf-8')); c=d['metadata']['component']; c['version']=sys.argv[1]; c['purl']='pkg:pypi/mcp-radardeprecos@'+sys.argv[1]; json.dump(d,open('dist/mcp-radardeprecos-'+sys.argv[1]+'.cdx.json','w',encoding='utf-8'),ensure_ascii=False,indent=2)" "$versao"
       - name: Extrair notas do CHANGELOG
         run: |
           versao="${GITHUB_REF_NAME#v}"
