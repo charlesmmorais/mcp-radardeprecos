@@ -20,6 +20,13 @@ e o projeto adota o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ### Corrigido
 
+- `exportar_trilha_auditoria` gravava o arquivo de forma síncrona dentro da
+  corrotina, travando o servidor durante a escrita; a gravação vai para uma
+  thread.
+- `scripts/smoke_mcp.py`: a opção `--insecure`, que desligava a verificação
+  de TLS, deu lugar a `--ca-cert ARQUIVO`, que confia numa CA corporativa sem
+  desligar a verificação. O aviso "parece ser a versão do SDK", que disparava
+  sempre desde a 1.0.0, deu lugar a `--versao-esperada X.Y.Z`.
 - Códigos de órgão e de UASG perdiam o zero à esquerda e a consulta voltava
   vazia, sem aviso: `consultar_contratos_compras(codigo_orgao=3000)` respondia
   que o TCU não tinha contratos, enquanto `03000` traz os 5 da vigência. O
