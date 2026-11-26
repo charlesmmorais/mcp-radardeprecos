@@ -169,7 +169,7 @@ A descrição completa de cada tool — o que faz, como funciona e qual fonte
 consulta — está em **[docs/FERRAMENTAS.md](docs/FERRAMENTAS.md)**.
 
 <details>
-<summary><b>48 tools</b> — clique para expandir</summary>
+<summary><b>49 tools</b> — clique para expandir</summary>
 
 **Busca no PNCP**
 
@@ -232,6 +232,7 @@ consulta — está em **[docs/FERRAMENTAS.md](docs/FERRAMENTAS.md)**.
 | `agrupar_por_comparabilidade` | Agrupa preços por unidade, quantidade e período, com grau A–D de comparabilidade. |
 | `detectar_inconsistencias` | Sinaliza armadilhas nos registros (unitário que parece global, homologado > estimado…). |
 | `atualizar_precos_indice` | Corrige preços históricos por IPCA, IGP-M ou IPC-Fipe. |
+| `avaliar_pesquisa_mercado` | Avalia vários itens preço a preço (excessivo, inexequível, preço público) e calcula o preço de mercado; baseado na planilha do STJ. |
 | `calcular_preco_referencia` | Escore Z iterativo, média saneada, mediana ou mínimo, com CV e avisos. |
 | `pesquisar_cesta_precos` | Preço de referência de vários itens de uma vez, com total consolidado. |
 | `classificar_curva_abc` | Classes A/B/C por valor acumulado, para dosar o esforço de pesquisa. |
