@@ -25,6 +25,13 @@ e o projeto adota o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   buscados no PNCP pela conversa. Cada edição reavalia o estudo pela tool;
   exporta em Excel. Autocontida, sem recurso externo, e sem guardar nada no
   servidor. Clientes sem MCP Apps continuam recebendo o resultado em JSON.
+- `gerar_pdf_avaliacao_pesquisa_mercado`: o estudo de avaliação em PDF A4, sem
+  logotipo — dados do estudo, indicadores, resumo dos itens, avaliação de cada
+  preço com observações, resultado e pendências por item, parâmetros (os
+  alterados marcados para justificar), método e campo de assinatura, com
+  "Página x de y" no rodapé. Refaz a avaliação no servidor, para o PDF nunca
+  trazer números que a tool não calculou. Na tela, o botão "Gerar PDF".
+- Dependência nova: `reportlab` (geração do PDF), travada no `uv.lock` com hash.
 
 ### Segurança
 

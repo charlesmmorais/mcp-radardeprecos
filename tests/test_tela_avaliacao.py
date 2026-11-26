@@ -51,6 +51,7 @@ async def test_tela_conversa_pelo_protocolo_do_mcp_apps():
                    "ui/notifications/tool-result", "ui/message", "ui/download-file"):
         assert f'"{metodo}"' in html
     assert '"2026-01-26"' in html
+    assert '"gerar_pdf_avaliacao_pesquisa_mercado"' in html  # botão Gerar PDF
     assert "e.source !== window.parent" in html
 
 

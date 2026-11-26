@@ -78,6 +78,7 @@ from .tools.exportar_resultados import exportar_resultados
 from .tools.exportar_trilha_auditoria import exportar_trilha_auditoria
 from .tools.gerar_estudo_mercado_tic import gerar_estudo_mercado_tic
 from .tools.gerar_memoria_pesquisa import gerar_memoria_pesquisa
+from .tools.gerar_pdf_avaliacao_pesquisa_mercado import gerar_pdf_avaliacao_pesquisa_mercado
 from .tools.gerar_relatorio_excel import gerar_relatorio_excel
 from .tools.gerar_relatorio_word import gerar_relatorio_word
 from .tools.listar_arquivos_pncp import listar_arquivos_pncp
@@ -126,6 +127,7 @@ _TOOLS: list[Callable[..., Awaitable[object]]] = [
     buscar_contratos_compras,
     calcular_preco_referencia,
     avaliar_pesquisa_mercado,
+    gerar_pdf_avaliacao_pesquisa_mercado,
     atualizar_precos_indice,
     buscar_precos_praticados_compras,
     buscar_precos_saude_bps,
@@ -177,6 +179,7 @@ _TOOLS_QUE_ESCREVEM = frozenset({
     "gerar_relatorio_excel",
     "gerar_relatorio_word",
     "gerar_memoria_pesquisa",
+    "gerar_pdf_avaliacao_pesquisa_mercado",
 })
 
 #: Tools que respondem só com cálculo local ou tabelas embutidas
@@ -190,6 +193,7 @@ _TOOLS_SEM_REDE = frozenset({
     "agrupar_por_comparabilidade",
     "calcular_preco_referencia",
     "avaliar_pesquisa_mercado",
+    "gerar_pdf_avaliacao_pesquisa_mercado",
     "classificar_curva_abc",
     "detectar_inconsistencias",
 })
