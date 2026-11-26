@@ -304,12 +304,11 @@ ao longo do tempo (tools, clientes MCP, saúde das fontes), veja
 ```bash
 git clone https://github.com/charlesmmorais/mcp-radardeprecos
 cd mcp-radardeprecos
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+uv sync --locked --extra dev   # dependências travadas no uv.lock
 
-ruff check src tests
-pytest                 # suíte offline (APIs simuladas com respx)
-pytest -m live         # testes contra as APIs reais
+uv run ruff check src tests
+uv run pytest                 # suíte offline (APIs simuladas com respx)
+uv run pytest -m live         # testes contra as APIs reais
 ```
 
 A suíte tem mais de mil testes, incluindo exemplos de cálculo reproduzidos do

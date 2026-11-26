@@ -7,6 +7,17 @@ e o projeto adota o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+### Segurança
+
+- Dependências travadas no `uv.lock`, com o hash de cada pacote, para todas as
+  versões de Python suportadas. CI, release e imagem Docker instalam com
+  `uv sync --locked --no-build`: nada fora do lock e nenhuma dependência
+  compilada a partir do código-fonte.
+- Ações do GitHub fixadas pelo SHA do commit, e as imagens do Dockerfile pelo
+  digest; o Dependabot atualiza os dois.
+- Análise de código no SonarQube Cloud em cada push e PR, com a cobertura dos
+  testes.
+
 ### Corrigido
 
 - Códigos de órgão e de UASG perdiam o zero à esquerda e a consulta voltava

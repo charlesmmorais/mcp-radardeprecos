@@ -72,7 +72,9 @@ def test_a_versao_declarada_continua_sendo_a_nossa():
 
 def test_digest_e_estavel_entre_chamadas():
     tools = [_tool("b"), _tool("a")]
-    assert descrever_catalogo(tools)["digest"] == descrever_catalogo(tools)["digest"]
+    primeira = descrever_catalogo(tools)["digest"]
+    segunda = descrever_catalogo(tools)["digest"]
+    assert primeira == segunda
 
 
 def test_digest_independe_da_ordem_de_registro():

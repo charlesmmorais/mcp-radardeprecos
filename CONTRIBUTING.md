@@ -15,21 +15,23 @@ sugestões e pull requests são bem-vindos.
 ```bash
 git clone https://github.com/charlesmmorais/mcp-radardeprecos
 cd mcp-radardeprecos
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -e ".[dev]"
+uv sync --locked --extra dev     # instala exatamente o que está no uv.lock
 ```
+
+As dependências ficam travadas no `uv.lock`, com o hash de cada pacote. Ao
+mudar uma dependência no `pyproject.toml`, rode `uv lock` e inclua o
+`uv.lock` no mesmo commit — o CI recusa um lock desatualizado.
 
 ## Verificação
 
 ```bash
-ruff check src tests
-pytest                 # offline, APIs simuladas com respx
-pytest -m live         # contra as APIs reais, quando mexer em integração
+uv run ruff check src tests
+uv run pytest                 # offline, APIs simuladas com respx
+uv run pytest -m live         # contra as APIs reais, quando mexer em integração
 ```
 
 O CI roda lint e testes em Python 3.10 a 3.13, além do build do pacote e da
-imagem Docker.
+imagem Docker, e envia a análise ao SonarQube Cloud.
 
 ## Convenções
 

@@ -16,10 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           python-version: "3.12"
-          cache: pip
-      - run: pip install -e ".[dev]"
-      - run: pytest -m live -q
+          enable-cache: true
+      - run: uv sync --locked --extra dev --no-build
+      - run: uv run --no-sync pytest -m live -q

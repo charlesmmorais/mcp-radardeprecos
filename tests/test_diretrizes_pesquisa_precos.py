@@ -133,4 +133,6 @@ def test_renderizar_markdown_inclui_secoes_principais():
 
 def test_renderizar_markdown_e_deterministica():
     # Mesma estrutura -> mesmo texto (sem timestamps ou aleatoriedade).
-    assert renderizar_markdown() == renderizar_markdown()
+    primeira = renderizar_markdown()
+    segunda = renderizar_markdown()
+    assert primeira == segunda

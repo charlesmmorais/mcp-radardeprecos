@@ -20,18 +20,18 @@ jobs:
     # PRs de forks não recebem o SONAR_TOKEN; a análise roda só no repositório.
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Histórico completo: o Sonar usa o blame para separar código novo.
           fetch-depth: 0
-      - uses: actions/setup-python@v7
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           python-version: "3.12"
-          cache: pip
-      - run: pip install -e ".[dev]"
+          enable-cache: true
+      - run: uv sync --locked --extra dev --no-build
       - name: Testes com cobertura
-        run: pytest -q --cov=mcp_radardeprecos --cov-report=xml
+        run: uv run --no-sync pytest -q --cov=mcp_radardeprecos --cov-report=xml
       - name: Análise
-        uses: SonarSource/sonarqube-scan-action@v8
+        uses: SonarSource/sonarqube-scan-action@70bad232163b09d998ea0707ee80c0ec80798c16 # v8.5.1
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
