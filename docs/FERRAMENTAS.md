@@ -1,6 +1,6 @@
 # Ferramentas
 
-As 48 ferramentas do mcp-radardeprecos: o que cada uma faz, como funciona e de
+As 49 ferramentas do mcp-radardeprecos: o que cada uma faz, como funciona e de
 onde vêm os dados.
 
 Todas as consultas são anônimas e somente leitura, sobre fontes públicas
@@ -220,6 +220,19 @@ num lote, homologado acima do estimado, unitário que parece global, objeto
 composto etc.). Informativa: nunca descarta nada. *Fonte:* sem acesso externo.
 
 ## Cálculo e correção monetária
+
+**`avaliar_pesquisa_mercado`** — avalia a pesquisa de mercado de um ou mais
+itens, preço a preço: excessivamente elevado (acima de 125% da média dos demais
+preços), inexequível (abaixo de 75%), e preserva preços públicos inexequíveis
+(PNCP, Painel de Preços, ata ou contrato) e os iguais a eles. O preço de
+mercado é a média se o coeficiente de variação ficar até 25%, senão a
+mediana, ou o preço mínimo por opção; percentuais e limite são editáveis, com
+aviso de justificativa. Confere se as fontes públicas são a maioria e se há
+pelo menos 3 preços válidos, e compara o preço contratado na prorrogação.
+Cada item tem métrica e quantidade, e o estudo soma o valor total. Não guarda
+nada: recebe o estudo inteiro e devolve a versão seguinte, para o estudo viver
+na conversa. Baseado na planilha de Avaliação de pesquisa de mercado do STJ.
+*Sem consulta externa.*
 
 **`calcular_preco_referencia`** — calcula o preço de referência a partir da
 cesta. *Como:* o padrão é o **escore Z iterativo**, governado pelo coeficiente

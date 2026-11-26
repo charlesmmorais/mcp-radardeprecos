@@ -43,6 +43,7 @@ from .prompts.conduzir_pesquisa_precos import (
 from .rate_limit import RateLimiter, RateLimitMiddleware
 from .tools.agrupar_por_comparabilidade import agrupar_por_comparabilidade
 from .tools.atualizar_precos_indice import atualizar_precos_indice
+from .tools.avaliar_pesquisa_mercado import avaliar_pesquisa_mercado
 from .tools.buscar_arp_compras import buscar_arp_compras
 from .tools.buscar_contratacoes_pncp import buscar_contratacoes_pncp
 from .tools.buscar_contratos_compras import buscar_contratos_compras
@@ -124,6 +125,7 @@ _TOOLS: list[Callable[..., Awaitable[object]]] = [
     buscar_contratacoes_pncp,
     buscar_contratos_compras,
     calcular_preco_referencia,
+    avaliar_pesquisa_mercado,
     atualizar_precos_indice,
     buscar_precos_praticados_compras,
     buscar_precos_saude_bps,
@@ -187,6 +189,7 @@ _TOOLS_SEM_REDE = frozenset({
     "normalizar_precos_unidade",
     "agrupar_por_comparabilidade",
     "calcular_preco_referencia",
+    "avaliar_pesquisa_mercado",
     "classificar_curva_abc",
     "detectar_inconsistencias",
 })

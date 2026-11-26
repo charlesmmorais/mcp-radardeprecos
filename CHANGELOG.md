@@ -7,6 +7,18 @@ e o projeto adota o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
 
+### Adicionado
+
+- `avaliar_pesquisa_mercado`: avaliação de pesquisa de mercado com vários itens,
+  preço a preço — excessivamente elevado e inexequível contra a média dos demais
+  preços, preservação de preços públicos inexequíveis, média ou mediana pelo
+  coeficiente de variação, preço mínimo por opção e as checagens de maioria de
+  fontes públicas e de 3 preços válidos. Percentuais e limite editáveis, com
+  aviso de justificativa. Cada item tem métrica e quantidade. Não guarda nada:
+  o estudo vive na conversa, com número de versão. Baseada na planilha de
+  Avaliação de pesquisa de mercado do STJ, cujos resultados servem de gabarito
+  nos testes.
+
 ### Segurança
 
 - Dependências travadas no `uv.lock`, com o hash de cada pacote, para todas as
