@@ -31,7 +31,8 @@ uv run pytest -m live         # contra as APIs reais, quando mexer em integraç�
 ```
 
 O CI roda lint e testes em Python 3.10 a 3.13, além do build do pacote e da
-imagem Docker, e envia a análise ao SonarQube Cloud.
+imagem Docker, e envia a análise ao SonarQube Cloud. Um workflow à parte audita
+as dependências com `pip-audit` em cada PR e toda semana.
 
 ## Convenções
 

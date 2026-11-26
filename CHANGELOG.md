@@ -17,6 +17,10 @@ e o projeto adota o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   digest; o Dependabot atualiza os dois.
 - Análise de código no SonarQube Cloud em cada push e PR, com a cobertura dos
   testes.
+- Auditoria das dependências com `pip-audit` em cada push, em cada PR e toda
+  semana, sobre o lock com hashes.
+- Cada release publica o SBOM (CycloneDX 1.5) das dependências de produção,
+  pronto para importar no Dependency-Track.
 
 ### Corrigido
 

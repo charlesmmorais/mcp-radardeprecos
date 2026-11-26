@@ -46,6 +46,7 @@ metrics = [
 dev = [
     "build>=1.2",
     "hatchling>=1.25",
+    "pip-audit>=2.7",
     "prometheus-client>=0.20",
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
