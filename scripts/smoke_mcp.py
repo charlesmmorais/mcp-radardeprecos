@@ -22,7 +22,7 @@ Só usa a biblioteca padrão — roda em qualquer Python 3.10+ sem instalar nada
 
 Uso:
     python scripts/smoke_mcp.py https://seu-servidor.exemplo.gov.br
-    python scripts/smoke_mcp.py <url> --insecure    # CA corporativa não confiável
+    python scripts/smoke_mcp.py <url> --ca-cert ca-corporativa.pem   # CA própria
 """
 from __future__ import annotations
 
@@ -37,10 +37,12 @@ TIMEOUT = 120  # varreduras no PNCP podem passar de 60s
 
 
 class Cliente:
-    def __init__(self, base: str, inseguro: bool = False) -> None:
+    def __init__(self, base: str, ca_cert: str | None = None) -> None:
         self.url = base.rstrip("/") + "/mcp"
         self.sessao: str | None = None
-        self.ctx = ssl._create_unverified_context() if inseguro else None
+        # Servidor atrás de uma CA corporativa: confia nela explicitamente, sem
+        # desligar a verificação de certificado e de hostname.
+        self.ctx = ssl.create_default_context(cafile=ca_cert) if ca_cert else None
         self._id = 0
 
     def _chamar(self, metodo: str, params: dict | None = None, notificacao: bool = False):
@@ -93,7 +95,16 @@ def _falha(rotulo: str, erro: object, segundos: float | None = None) -> None:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("url", help="base do servidor, sem /mcp")
-    p.add_argument("--insecure", action="store_true", help="ignora validação de certificado")
+    p.add_argument(
+        "--ca-cert",
+        metavar="ARQUIVO",
+        help="certificado (PEM) da CA que assina o servidor, quando não é uma CA pública",
+    )
+    p.add_argument(
+        "--versao-esperada",
+        metavar="X.Y.Z",
+        help="avisa se o servidor publicar outra versão (ex.: logo após um deploy)",
+    )
     p.add_argument(
         "--tentativas",
         type=int,
@@ -105,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
     args.tentativas = max(1, args.tentativas)
 
     print(f"\nTestando {args.url}\n")
-    c = Cliente(args.url, args.insecure)
+    c = Cliente(args.url, args.ca_cert)
     problemas = 0
 
     # 1. handshake
@@ -120,10 +131,10 @@ def main(argv: list[str] | None = None) -> int:
         _ok("initialize", f"{info['name']} {info['version']}", time.monotonic() - t)
         if not c.sessao:
             print("  AVISO: servidor não devolveu Mcp-Session-Id")
-        # A versão do SDK aparecendo aqui significa que o servidor não passou
-        # a própria versão ao FastMCP (corrigido na v0.4.14/0.5.4).
-        if info["version"].startswith("1."):
-            print(f"  AVISO: versão {info['version']} parece ser a do SDK, não a do projeto")
+        # Confere a versão publicada. Antes a regra era "começa com 1. = versão
+        # do SDK", que só valia enquanto o projeto estava na série 0.x.
+        if args.versao_esperada and info["version"] != args.versao_esperada:
+            print(f"  AVISO: versão {info['version']} publicada; esperada {args.versao_esperada}")
     except Exception as exc:  # noqa: BLE001
         _falha("initialize", exc)
         return 1

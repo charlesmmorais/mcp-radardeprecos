@@ -1,8 +1,10 @@
 """Tool MCP: exporta o dossiê de auditoria (proveniência) de uma pesquisa."""
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from .. import __version__, auditoria
@@ -102,8 +104,9 @@ async def exportar_trilha_auditoria(
     if caminho_saida:
         exigir_gravacao_em_disco_permitida()
         conteudo = json.dumps(dossie, ensure_ascii=False, indent=2)
-        with open(caminho_saida, "w", encoding="utf-8") as fh:
-            fh.write(conteudo)
+        # Numa thread: gravar em disco dentro da corrotina travaria o servidor
+        # para todas as outras chamadas enquanto o arquivo é escrito.
+        await asyncio.to_thread(Path(caminho_saida).write_text, conteudo, encoding="utf-8")
         dossie["caminho_saida"] = caminho_saida
         dossie["tamanho_bytes"] = len(conteudo.encode("utf-8"))
 
