@@ -273,7 +273,7 @@ async def test_registro_em_loop_mantem_as_tools_com_docstring():
     # Nome MCP = nome da função; descrição herdada do docstring via wraps.
     tools = await server.mcp.list_tools()
     nomes = [t.name for t in tools]
-    assert len(nomes) == 49
+    assert len(nomes) == 50
     assert nomes[0] == "buscar_pncp_texto"  # ordem de registro preservada
     assert nomes[-1] == "exportar_trilha_auditoria"
     assert nomes == [f.__name__ for f in server._TOOLS]
@@ -492,7 +492,7 @@ async def test_registro_de_tools_preservado_apos_reload_com_entra_habilitado(mon
     try:
         _reload_config_e_server()
         tools = await server.mcp.list_tools()
-        assert len(tools) == 49
+        assert len(tools) == 50
     finally:
         monkeypatch.delenv("ENTRA_TENANT_ID", raising=False)
         monkeypatch.delenv("ENTRA_CLIENT_ID", raising=False)

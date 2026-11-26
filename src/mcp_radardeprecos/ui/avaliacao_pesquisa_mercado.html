@@ -179,7 +179,8 @@
       </div>
       <div class="acoes">
         <span class="estado" id="estado" role="status" aria-live="polite"></span>
-        <button id="exportar" type="button" class="primario">Exportar Excel</button>
+        <button id="exportar" type="button">Exportar Excel</button>
+        <button id="gerar-pdf" type="button" class="primario">Gerar PDF</button>
       </div>
     </div>
     <ul id="avisos" class="avisos"></ul>
@@ -605,6 +606,7 @@
     ul.replaceChildren();
     (r ? r.avisos : []).forEach(function (t) { ul.appendChild(el("li", { texto: t })); });
     $("exportar").disabled = !r;
+    $("gerar-pdf").disabled = !r;
   }
 
   function mostrarEstado(t, erro) {
@@ -706,41 +708,52 @@
     return regs;
   }
 
-  $("exportar").addEventListener("click", function () {
-    var regs = registrosParaExportar();
-    if (!regs.length) { mostrarEstado("Nada para exportar.", true); return; }
-    mostrarEstado("Gerando a planilha…");
-    pedir("tools/call", { name: "exportar_resultados", arguments: { registros: regs, formato: "xlsx" } }).then(function (res) {
+  var MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  var MIME_PDF = "application/pdf";
+
+  // Chama uma tool que devolve um arquivo em base64 e entrega o arquivo.
+  function gerarArquivo(tool, args, extensao, mime, rotulo) {
+    mostrarEstado("Gerando " + rotulo + "…");
+    return pedir("tools/call", { name: tool, arguments: args }).then(function (res) {
       if (res && res.isError) throw new Error(mensagemDeErro(res));
       var s = res.structuredContent && (res.structuredContent.result || res.structuredContent);
       if (!s || !s.conteudo_base64) {
         var c = (res.content || []).filter(function (x) { return x.type === "text"; });
         try { s = JSON.parse(c[0].text); } catch (err) { s = null; }
       }
-      if (!s || !s.conteudo_base64) throw new Error("a planilha não veio na resposta");
-      return baixar(s);
-    }).catch(function (err) { mostrarEstado("Falha ao exportar: " + err.message, true); });
-  });
-
-  function nomeDoArquivo() {
-    var base = "avaliacao_pesquisa_mercado" + (estudo.processo ? "_" + estudo.processo.replace(/[^\w.-]+/g, "_") : "");
-    return base + "_v" + estudo.versao + ".xlsx";
+      if (!s || !s.conteudo_base64) throw new Error("o arquivo não veio na resposta");
+      return baixar(s.conteudo_base64, nomeDoArquivo(extensao), mime, rotulo);
+    }).catch(function (err) { mostrarEstado("Falha ao gerar " + rotulo + ": " + err.message, true); });
   }
 
-  function baixar(s) {
-    var nome = nomeDoArquivo();
-    var mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  $("gerar-pdf").addEventListener("click", function () {
+    if (!estudo.itens.length) { mostrarEstado("Adicione um item antes de gerar o PDF.", true); return; }
+    gerarArquivo("gerar_pdf_avaliacao_pesquisa_mercado", montarArgumentos(), "pdf", MIME_PDF, "o PDF");
+  });
+
+  $("exportar").addEventListener("click", function () {
+    var regs = registrosParaExportar();
+    if (!regs.length) { mostrarEstado("Nada para exportar.", true); return; }
+    gerarArquivo("exportar_resultados", { registros: regs, formato: "xlsx" }, "xlsx", MIME_XLSX, "a planilha");
+  });
+
+  function nomeDoArquivo(extensao) {
+    var base = "avaliacao_pesquisa_mercado" + (estudo.processo ? "_" + estudo.processo.replace(/[^\w.-]+/g, "_") : "");
+    return base + "_v" + estudo.versao + "." + extensao;
+  }
+
+  function baixar(base64, nome, mime, rotulo) {
     if (hostCaps.downloadFile) {
       return pedir("ui/download-file", { contents: [{ type: "resource",
-        resource: { uri: "file:///" + nome, mimeType: mime, blob: s.conteudo_base64 } }] })
-        .then(function () { mostrarEstado("Planilha entregue: " + nome); });
+        resource: { uri: "file:///" + nome, mimeType: mime, blob: base64 } }] })
+        .then(function () { mostrarEstado("Arquivo entregue: " + nome); });
     }
     // Sem download pelo host: tenta pelo navegador (pode ser bloqueado pelo sandbox).
-    var bin = atob(s.conteudo_base64), bytes = new Uint8Array(bin.length);
+    var bin = atob(base64), bytes = new Uint8Array(bin.length);
     for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     var a = el("a", { href: URL.createObjectURL(new Blob([bytes], { type: mime })), download: nome });
     document.body.appendChild(a); a.click(); a.remove();
-    mostrarEstado("Planilha gerada: " + nome + ". Se o download não começar, peça a planilha na conversa.");
+    mostrarEstado("Arquivo gerado: " + nome + ". Se o download não começar, peça " + rotulo + " na conversa.");
     return null;
   }
 

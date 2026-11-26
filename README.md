@@ -169,7 +169,7 @@ A descrição completa de cada tool — o que faz, como funciona e qual fonte
 consulta — está em **[docs/FERRAMENTAS.md](docs/FERRAMENTAS.md)**.
 
 <details>
-<summary><b>49 tools</b> — clique para expandir</summary>
+<summary><b>50 tools</b> — clique para expandir</summary>
 
 **Busca no PNCP**
 
@@ -247,6 +247,7 @@ consulta — está em **[docs/FERRAMENTAS.md](docs/FERRAMENTAS.md)**.
 | `gerar_memoria_pesquisa` | Consolida objeto, fontes, buscas frustradas e cálculo num documento (JSON/Markdown). |
 | `gerar_relatorio_excel` | Planilha da pesquisa em 4 abas. |
 | `gerar_relatorio_word` | Documento conforme o Art. 3º, I a VIII, da IN 65/2021. |
+| `gerar_pdf_avaliacao_pesquisa_mercado` | PDF do estudo de `avaliar_pesquisa_mercado`: resumo, avaliação de cada preço, parâmetros e assinatura. |
 | `exportar_resultados` | Exporta qualquer lista de registros para CSV ou XLSX. |
 | `exportar_trilha_auditoria` | Dossiê de proveniência: URL, parâmetros, horário e hash SHA-256 de cada consulta. |
 

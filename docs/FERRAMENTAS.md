@@ -1,6 +1,6 @@
 # Ferramentas
 
-As 49 ferramentas do mcp-radardeprecos: o que cada uma faz, como funciona e de
+As 50 ferramentas do mcp-radardeprecos: o que cada uma faz, como funciona e de
 onde vêm os dados.
 
 Todas as consultas são anônimas e somente leitura, sobre fontes públicas
@@ -238,7 +238,7 @@ Em clientes com suporte a MCP Apps (como o Microsoft 365 Copilot e o Claude),
 a tool abre uma tela interativa: dados do estudo, opções, lista de itens e a
 tabela de preços de cada item, com a avaliação de cada preço e o resultado.
 Cada edição chama a tool de novo; a tela também pede à conversa a busca de
-preços no PNCP e exporta o estudo em Excel. Nada é gravado no servidor.
+preços no PNCP e gera o estudo em PDF ou Excel. Nada é gravado no servidor.
 
 **`calcular_preco_referencia`** — calcula o preço de referência a partir da
 cesta. *Como:* o padrão é o **escore Z iterativo**, governado pelo coeficiente
@@ -319,6 +319,15 @@ abas, a partir da memória e do cálculo. Pendências ficam marcadas na célula.
 **`gerar_relatorio_word`** — gera o documento (.docx) de formalização conforme
 os elementos I a VIII do Art. 3º da IN 65/2021, como rascunho com pendências
 marcadas para revisão. *Fonte:* sem acesso externo.
+
+**`gerar_pdf_avaliacao_pesquisa_mercado`** — gera o PDF (A4) do estudo de
+`avaliar_pesquisa_mercado`. Recebe o mesmo estudo e refaz a avaliação antes de
+montar o documento, para o PDF trazer exatamente os números da tool: dados do
+estudo, indicadores, resumo dos itens com o total estimado, a avaliação de cada
+preço com as observações, o resultado e as pendências de cada item, os
+parâmetros adotados (com os alterados marcados para justificar), o método e o
+campo de assinatura. Sem logotipo. Também sai pelo botão "Gerar PDF" da tela.
+*Fonte:* sem acesso externo.
 
 **`exportar_resultados`** — exporta os registros de qualquer busca para CSV ou
 XLSX, achatando campos aninhados. *Fonte:* sem acesso externo.
